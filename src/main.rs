@@ -11,7 +11,8 @@ struct Model {
     camera_pos: Vec3,
     _in_stream: audio::Stream<InputModel>,
     consumer: Consumer<f32>,
-    current_note: &'static str,
+    tuning_notes: Vec<String>,
+    current_note: String,
     ui_visible: bool,
     egui: Egui,
     settings: Settings,
@@ -21,6 +22,7 @@ struct Settings {
     power_threshold: f32,
     clarity_threshold: f32,
     key: &'static str,
+    tuning: &'static str,
 }
 
 fn main() {
@@ -68,13 +70,15 @@ fn model(app: &App) -> Model {
         camera_pos: Vec3::ZERO,
         _in_stream: in_stream,
         consumer: cons,
-        current_note: "4",
+        tuning_notes: harptabber::tuning_to_notes_in_order("richter").0,
+        current_note: "4".to_owned(),
         ui_visible: true,
         egui,
         settings: Settings {
             power_threshold: 3.0,
             clarity_threshold: 0.7,
             key: "C",
+            tuning: "richter",
         },
     }
 }
@@ -100,12 +104,42 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 "C", "G", "D", "A", "E", "B", "F#", "Db", "Ab", "Eb", "Bb", "F", "LF", "LC", "LD",
                 "HG",
             ];
-
             egui::ComboBox::from_label("Key")
                 .selected_text(settings.key)
                 .show_ui(ui, |ui| {
                     for key in keys.iter() {
                         ui.selectable_value(&mut settings.key, key, key);
+                    }
+                });
+
+            let tunings = [
+                "richter",
+                "country",
+                "wilde tuning",
+                "wilde minor tuning",
+                "melody maker",
+                "natural minor",
+                "harmonic minor",
+                "paddy richter",
+                "pentaharp",
+                "powerdraw",
+                "powerbender",
+                "diminished",
+                "lucky 13 diminished",
+                "lucky 13 powerchromatic",
+                "easy 3rd",
+            ];
+            egui::ComboBox::from_label("Tuning")
+                .selected_text(settings.tuning)
+                .width(150.0)
+                .show_ui(ui, |ui| {
+                    for tuning in tunings.iter() {
+                        if ui
+                            .selectable_value(&mut settings.tuning, tuning, tuning)
+                            .changed()
+                        {
+                            model.tuning_notes = harptabber::tuning_to_notes_in_order(tuning).0;
+                        }
                     }
                 });
 
@@ -144,7 +178,7 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 let frequency = pitch.frequency;
                 let midi = freq_to_midi(frequency);
                 new_pos.x = map_range(freq_to_midi_float(frequency), 50.0, 100.0, 10.0, -10.0);
-                model.current_note = midi_to_tab(midi, settings.key);
+                model.current_note = midi_to_tab(midi, settings.key, &model.tuning_notes);
             }
             new_pos.y += 0.1;
             new_pos.z += 0.3;
@@ -227,12 +261,7 @@ fn freq_to_midi_float(freq: f32) -> f32 {
     12.0 * (freq / 440.0).log2() + 69.0
 }
 
-fn midi_to_tab(midi: u8, key: &str) -> &'static str {
-    let notes_in_order = [
-        "1", "-1'", "-1", "1o", "2", "-2''", "-2'", "-2", "-3'''", "-3''", "-3'", "-3", "4", "-4'",
-        "-4", "4o", "5", "-5", "5o", "6", "-6'", "-6", "6o", "-7", "7", "-7o", "-8", "8'", "8",
-        "-9", "9'", "9", "-9o", "-10", "10''", "10'", "10",
-    ];
+fn midi_to_tab(midi: u8, key: &str, notes_in_order: &[String]) -> String {
     let offset = match key {
         "C" => 0,
         "G" => -5,
@@ -256,9 +285,9 @@ fn midi_to_tab(midi: u8, key: &str) -> &'static str {
     };
     let index: isize = midi as isize - 60 - offset;
     if index < 0 || index > notes_in_order.len() as isize - 1 {
-        return "";
+        return "".to_owned();
     }
-    notes_in_order[index as usize]
+    notes_in_order[index as usize].to_owned()
 }
 
 fn raw_window_event(_app: &App, model: &mut Model, event: &nannou::winit::event::WindowEvent) {
