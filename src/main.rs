@@ -1,6 +1,7 @@
 use nannou::prelude::*;
 use nannou_audio as audio;
 use nannou_audio::Buffer;
+use nannou_egui::{self, egui, Egui};
 use pitch_detection::detector::mcleod::McLeodDetector;
 use pitch_detection::detector::PitchDetector;
 use ringbuf::{Consumer, Producer, RingBuffer};
@@ -11,6 +12,14 @@ struct Model {
     _in_stream: audio::Stream<InputModel>,
     consumer: Consumer<f32>,
     current_note: &'static str,
+    ui_visible: bool,
+    egui: Egui,
+    settings: Settings,
+}
+
+struct Settings {
+    power_threshold: f32,
+    clarity_threshold: f32,
 }
 
 fn main() {
@@ -18,12 +27,16 @@ fn main() {
 }
 
 fn model(app: &App) -> Model {
-    let _window = app
+    let window_id = app
         .new_window()
         .view(view)
+        .raw_event(raw_window_event)
         .size(1920, 1080)
         .build()
         .unwrap();
+
+    let window = app.window(window_id).unwrap();
+    let egui = Egui::from_window(&window);
 
     // Initialise the audio host so we can spawn an audio stream.
     let audio_host = audio::Host::new();
@@ -54,10 +67,34 @@ fn model(app: &App) -> Model {
         _in_stream: in_stream,
         consumer: cons,
         current_note: "4",
+        ui_visible: true,
+        egui,
+        settings: Settings {
+            power_threshold: 3.0,
+            clarity_threshold: 0.7,
+        },
     }
 }
 
-fn update(_app: &App, model: &mut Model, _update: Update) {
+fn update(_app: &App, model: &mut Model, update: Update) {
+    let egui = &mut model.egui;
+    let settings = &mut model.settings;
+
+    egui.set_elapsed_time(update.since_start);
+    let ctx = egui.begin_frame();
+    if model.ui_visible {
+        egui::Window::new("Settings").show(&ctx, |ui| {
+            ui.label("Power threshold:");
+            ui.add(egui::Slider::new(&mut settings.power_threshold, 0.0..=5.0));
+
+            ui.label("Clarity threshold:");
+            ui.add(egui::Slider::new(
+                &mut settings.clarity_threshold,
+                0.0..=1.0,
+            ));
+        });
+    }
+
     let mut new_pos = if let Some(pos) = model.locations.last() {
         *pos
     } else {
@@ -76,21 +113,17 @@ fn update(_app: &App, model: &mut Model, _update: Update) {
             const SAMPLE_RATE: usize = 44100;
             const SIZE: usize = 1024;
             const PADDING: usize = SIZE / 2;
-            const POWER_THRESHOLD: f32 = 3.0;
-            const CLARITY_THRESHOLD: f32 = 0.75;
 
             let mut detector = McLeodDetector::new(SIZE, PADDING);
 
-            if let Some(pitch) =
-                detector.get_pitch(&buf, SAMPLE_RATE, POWER_THRESHOLD, CLARITY_THRESHOLD)
-            {
+            if let Some(pitch) = detector.get_pitch(
+                &buf,
+                SAMPLE_RATE,
+                settings.power_threshold,
+                settings.clarity_threshold,
+            ) {
                 println!("pitch: {}, clarity: {}", pitch.frequency, pitch.clarity);
                 let frequency = pitch.frequency;
-                // let frequency = if pitch.frequency > 1000.0 {
-                //     pitch.frequency * 0.5
-                // } else {
-                //     pitch.frequency
-                // };
                 let midi = freq_to_midi(frequency);
                 new_pos.x = map_range(freq_to_midi_float(frequency), 50.0, 100.0, 10.0, -10.0);
                 model.current_note = midi_to_tab(midi, "C");
@@ -127,7 +160,6 @@ fn from_camera_view(point: Vec3, model: &Model) -> Vec2 {
 
 fn view(app: &App, model: &Model, frame: Frame) {
     let draw = app.draw();
-    // draw.background().color(BLACK);
     if app.elapsed_frames() == 1 {
         draw.background().color(BLACK);
     }
@@ -153,10 +185,10 @@ fn view(app: &App, model: &Model, frame: Frame) {
     let text_pos = from_camera_view(*model.locations.last().unwrap_or(&Vec3::ZERO), model);
     draw.rect()
         .w_h(2000.0, 2000.0)
-        // .y(text_pos.y)
         .color(srgba(0.0, 0.0, 0.0, 0.15));
     draw.text(&model.current_note).x(text_pos.x).font_size(32);
     draw.to_frame(app, &frame).unwrap();
+    model.egui.draw_to_frame(&frame).unwrap();
 }
 
 struct InputModel {
@@ -178,14 +210,6 @@ fn freq_to_midi_float(freq: f32) -> f32 {
 }
 
 fn midi_to_tab(midi: u8, key: &str) -> &'static str {
-    // country harp
-    // let notes_in_order = [
-    //     "1", "-1'", "-1", "1o", "2", "-2''", "-2'", "-2", "-3'''", "-3''", "-3'", "-3", "4", "-4'",
-    //     "-4", "4o", "5", "-5'", "-5", "6", "-6'", "-6", "6o", "-7", "7", "-7o", "-8", "8'", "8",
-    //     "-9", "9'", "9", "-9o", "-10", "10''", "10'", "10",
-    // ];
-
-    // richter harp
     let notes_in_order = [
         "1", "-1'", "-1", "1o", "2", "-2''", "-2'", "-2", "-3'''", "-3''", "-3'", "-3", "4", "-4'",
         "-4", "4o", "5", "-5", "5o", "6", "-6'", "-6", "6o", "-7", "7", "-7o", "-8", "8'", "8",
@@ -217,4 +241,9 @@ fn midi_to_tab(midi: u8, key: &str) -> &'static str {
         return "";
     }
     notes_in_order[index as usize]
+}
+
+fn raw_window_event(_app: &App, model: &mut Model, event: &nannou::winit::event::WindowEvent) {
+    // Let egui handle things like keyboard and mouse input.
+    model.egui.handle_raw_event(event);
 }
