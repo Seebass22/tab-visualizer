@@ -20,6 +20,7 @@ struct Model {
 struct Settings {
     power_threshold: f32,
     clarity_threshold: f32,
+    key: &'static str,
 }
 
 fn main() {
@@ -72,6 +73,7 @@ fn model(app: &App) -> Model {
         settings: Settings {
             power_threshold: 3.0,
             clarity_threshold: 0.7,
+            key: "C",
         },
     }
 }
@@ -92,6 +94,19 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 &mut settings.clarity_threshold,
                 0.0..=1.0,
             ));
+
+            let keys = [
+                "C", "G", "D", "A", "E", "B", "F#", "Db", "Ab", "Eb", "Bb", "F", "LF", "LC", "LD",
+                "HG",
+            ];
+
+            egui::ComboBox::from_label("Key")
+                .selected_text(settings.key)
+                .show_ui(ui, |ui| {
+                    for key in keys.iter() {
+                        ui.selectable_value(&mut settings.key, key, key);
+                    }
+                });
         });
     }
 
@@ -126,7 +141,7 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 let frequency = pitch.frequency;
                 let midi = freq_to_midi(frequency);
                 new_pos.x = map_range(freq_to_midi_float(frequency), 50.0, 100.0, 10.0, -10.0);
-                model.current_note = midi_to_tab(midi, "C");
+                model.current_note = midi_to_tab(midi, settings.key);
             }
             new_pos.y += 0.1;
             new_pos.z += 0.3;
