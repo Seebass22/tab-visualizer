@@ -32,6 +32,7 @@ fn model(app: &App) -> Model {
         .new_window()
         .view(view)
         .raw_event(raw_window_event)
+        .key_pressed(key_pressed)
         .size(1920, 1080)
         .build()
         .unwrap();
@@ -107,6 +108,8 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                         ui.selectable_value(&mut settings.key, key, key);
                     }
                 });
+
+            ui.label("F1 to hide");
         });
     }
 
@@ -261,4 +264,10 @@ fn midi_to_tab(midi: u8, key: &str) -> &'static str {
 fn raw_window_event(_app: &App, model: &mut Model, event: &nannou::winit::event::WindowEvent) {
     // Let egui handle things like keyboard and mouse input.
     model.egui.handle_raw_event(event);
+}
+
+fn key_pressed(_app: &App, model: &mut Model, key: Key) {
+    if key == Key::F1 {
+        model.ui_visible = !model.ui_visible;
+    }
 }
