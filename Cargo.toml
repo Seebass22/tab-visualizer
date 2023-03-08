@@ -13,3 +13,4 @@ ringbuf = "0.2.2"
 pitch-detection = "0.3.0"
 nannou_egui = "0.5.0"
 harptabber = { git = "https://github.com/Seebass22/harptabber", rev = "2ebf4b0" }
+ordered-float = "3.4.0"

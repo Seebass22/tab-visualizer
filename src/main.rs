@@ -2,6 +2,7 @@ use nannou::prelude::*;
 use nannou_audio as audio;
 use nannou_audio::Buffer;
 use nannou_egui::{self, egui, Egui};
+use ordered_float::NotNan;
 use pitch_detection::detector::mcleod::McLeodDetector;
 use pitch_detection::detector::PitchDetector;
 use ringbuf::{Consumer, Producer, RingBuffer};
@@ -13,6 +14,7 @@ struct Model {
     consumer: Consumer<f32>,
     tuning_notes: Vec<String>,
     current_note: String,
+    current_level: f32,
     ui_visible: bool,
     egui: Egui,
     settings: Settings,
@@ -72,6 +74,7 @@ fn model(app: &App) -> Model {
         consumer: cons,
         tuning_notes: harptabber::tuning_to_notes_in_order("richter").0,
         current_note: "4".to_owned(),
+        current_level: 0.0,
         ui_visible: true,
         egui,
         settings: Settings {
@@ -162,6 +165,13 @@ fn update(_app: &App, model: &mut Model, update: Update) {
 
         buf.push(recorded_sample);
         if buf.len() == 1024 {
+            model.current_level = buf
+                .iter()
+                .filter_map(|x| NotNan::new(x.abs()).ok())
+                .max()
+                .unwrap()
+                .into();
+
             const SAMPLE_RATE: usize = 44100;
             const SIZE: usize = 1024;
             const PADDING: usize = SIZE / 2;
@@ -229,7 +239,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
         let g = 0.1;
         let b = 0.8;
         draw.polyline()
-            .weight(2.5)
+            .weight(10.0 * model.current_level + 1.0)
             .points(line_points)
             .color(srgb(r, g, b));
     }
