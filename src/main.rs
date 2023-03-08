@@ -187,10 +187,10 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 println!("pitch: {}, clarity: {}", pitch.frequency, pitch.clarity);
                 let frequency = pitch.frequency;
                 let midi = freq_to_midi(frequency);
-                new_pos.x = map_range(freq_to_midi_float(frequency), 50.0, 100.0, 10.0, -10.0);
+                new_pos.x = map_range(freq_to_midi_float(frequency), 50.0, 100.0, -10.0, 10.0);
                 model.current_note = midi_to_tab(midi, settings.key, &model.tuning_notes);
             }
-            new_pos.y += 0.1;
+            new_pos.y -= 0.1;
             new_pos.z += 0.3;
 
             if model.locations.len() == model.locations.capacity() {
@@ -210,8 +210,9 @@ fn update(_app: &App, model: &mut Model, update: Update) {
 
 fn to_screen_position(point: &Vec3) -> Vec2 {
     let z = point.z - 10.0;
-    let x = point.x / (0.01 * z);
-    let y = point.y / (0.01 * z);
+    // z is always negative
+    let x = point.x / (0.01 * -z);
+    let y = point.y / (0.01 * -z);
     Vec2::new(10.0 * x, 10.0 * y)
 }
 
