@@ -7,6 +7,8 @@ use pitch_detection::detector::mcleod::McLeodDetector;
 use pitch_detection::detector::PitchDetector;
 use ringbuf::{Consumer, Producer, RingBuffer};
 
+const LINE_LENGTH: usize = 4096;
+
 struct Model {
     locations: Vec<Vec3>,
     camera_pos: Vec3,
@@ -68,7 +70,7 @@ fn model(app: &App) -> Model {
     in_stream.play().unwrap();
 
     Model {
-        locations: Vec::with_capacity(4096),
+        locations: Vec::with_capacity(LINE_LENGTH),
         camera_pos: Vec3::ZERO,
         _in_stream: in_stream,
         consumer: cons,
@@ -224,29 +226,24 @@ fn view(app: &App, model: &Model, frame: Frame) {
         draw.background().color(BLACK);
     }
 
-    for win in model.locations.windows(2) {
-        let mut line_points: [Vec2; 2] = [Vec2::ZERO; 2];
-        let mut line_color_points: [Vec3; 2] = [Vec3::ZERO; 2];
+    let points_iter = model.locations.iter().map(|point| {
+        let screen_pos = from_camera_view(*point, model);
+        let r = map_range(point.x, -8.0, 8.0, 1.0, 0.1);
+        (screen_pos, srgb(r, 0.1, 0.8))
+    });
 
-        for (i, point) in win.iter().enumerate() {
-            line_points[i] = from_camera_view(*point, model);
-            line_color_points[i] = *point;
-        }
+    draw.polyline()
+        .weight(10.0 * model.current_level + 1.0)
+        .points_colored(points_iter);
 
-        let r = map_range(line_color_points[1].x, -8.0, 8.0, 1.0, 0.1);
-        let g = 0.1;
-        let b = 0.8;
-        draw.polyline()
-            .weight(10.0 * model.current_level + 1.0)
-            .points(line_points)
-            .color(srgb(r, g, b));
-    }
-
-    let text_pos = from_camera_view(*model.locations.last().unwrap_or(&Vec3::ZERO), model);
+    // soft clear screen
     draw.rect()
         .w_h(2000.0, 2000.0)
         .color(srgba(0.0, 0.0, 0.0, 0.15));
+
+    let text_pos = from_camera_view(*model.locations.last().unwrap_or(&Vec3::ZERO), model);
     draw.text(&model.current_note).x(text_pos.x).font_size(32);
+
     draw.to_frame(app, &frame).unwrap();
     model.egui.draw_to_frame(&frame).unwrap();
 }
