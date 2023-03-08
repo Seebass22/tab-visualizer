@@ -128,8 +128,6 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 "powerdraw",
                 "powerbender",
                 "diminished",
-                "lucky 13 diminished",
-                "lucky 13 powerchromatic",
                 "easy 3rd",
             ];
             egui::ComboBox::from_label("Tuning")
