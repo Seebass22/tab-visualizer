@@ -187,7 +187,7 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 println!("pitch: {}, clarity: {}", pitch.frequency, pitch.clarity);
                 let frequency = pitch.frequency;
                 let midi = freq_to_midi(frequency);
-                new_pos.x = map_range(freq_to_midi_float(frequency), 50.0, 100.0, -10.0, 10.0);
+                new_pos.x = map_range(freq_to_midi_float(frequency), 50.0, 103.0, -8.8, 8.8);
                 model.current_note = midi_to_tab(midi, settings.key, &model.tuning_notes);
             }
             new_pos.y -= 0.1;
