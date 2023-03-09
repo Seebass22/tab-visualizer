@@ -121,10 +121,7 @@ fn update(_app: &App, model: &mut Model, update: Update) {
 
     let mut buf = Vec::with_capacity(1024);
     while !model.consumer.is_empty() {
-        let recorded_sample = match model.consumer.pop() {
-            Some(f) => f,
-            None => 0.0,
-        };
+        let recorded_sample = model.consumer.pop().unwrap_or(0.0);
 
         buf.push(recorded_sample);
         if buf.len() == 1024 {
@@ -255,7 +252,7 @@ fn ui(model: &mut Model, update: Update) {
 fn edit_hsv(ui: &mut egui::Ui, color: &mut LinSrgb) {
     let hsv_color: Hsv = Hsv::convert_from(*color);
     let mut egui_hsv = egui::color::Hsva::new(
-        hsv_color.hue.to_positive_radians() as f32 / (std::f32::consts::PI * 2.0),
+        hsv_color.hue.to_positive_radians() / (std::f32::consts::PI * 2.0),
         hsv_color.saturation,
         hsv_color.value,
         1.0,
