@@ -94,11 +94,74 @@ fn model(app: &App) -> Model {
 }
 
 fn update(_app: &App, model: &mut Model, update: Update) {
+    ui(model, update);
+    let settings = &mut model.settings;
+
+    let mut new_pos = if let Some(pos) = model.locations.last() {
+        *pos
+    } else {
+        Vec3::ZERO
+    };
+
+    let mut buf = Vec::with_capacity(1024);
+    while !model.consumer.is_empty() {
+        let recorded_sample = match model.consumer.pop() {
+            Some(f) => f,
+            None => 0.0,
+        };
+
+        buf.push(recorded_sample);
+        if buf.len() == 1024 {
+            model.current_level = buf
+                .iter()
+                .filter_map(|x| NotNan::new(x.abs()).ok())
+                .max()
+                .unwrap()
+                .into();
+
+            const SAMPLE_RATE: usize = 44100;
+            const SIZE: usize = 1024;
+            const PADDING: usize = SIZE / 2;
+
+            let mut detector = McLeodDetector::new(SIZE, PADDING);
+
+            if let Some(pitch) = detector.get_pitch(
+                &buf,
+                SAMPLE_RATE,
+                settings.power_threshold,
+                settings.clarity_threshold,
+            ) {
+                println!("pitch: {}, clarity: {}", pitch.frequency, pitch.clarity);
+                let frequency = pitch.frequency;
+                let midi = freq_to_midi(frequency);
+                new_pos.x = map_range(freq_to_midi_float(frequency), 50.0, 103.0, -8.8, 8.8);
+                model.current_note = midi_to_tab(midi, settings.key, &model.tuning_notes);
+            }
+            new_pos.y -= 0.1;
+            new_pos.z += 0.3;
+
+            if model.locations.len() == model.locations.capacity() {
+                model.locations.rotate_left(1);
+                model.locations.pop();
+            }
+            model.locations.push(new_pos);
+
+            buf.clear();
+        }
+    }
+
+    let mut direction = new_pos - model.camera_pos;
+    direction.x = 0.0;
+    model.camera_pos += direction;
+}
+
+fn ui(model: &mut Model, update: Update) {
     let egui = &mut model.egui;
     let settings = &mut model.settings;
 
     egui.set_elapsed_time(update.since_start);
     let ctx = egui.begin_frame();
+
     if model.ui_visible {
         egui::Window::new("Settings").show(&ctx, |ui| {
             ui.label("Power threshold:");
@@ -163,63 +226,6 @@ fn update(_app: &App, model: &mut Model, update: Update) {
             ui.label("F1 to hide");
         });
     }
-
-    let mut new_pos = if let Some(pos) = model.locations.last() {
-        *pos
-    } else {
-        Vec3::ZERO
-    };
-
-    let mut buf = Vec::with_capacity(1024);
-    while !model.consumer.is_empty() {
-        let recorded_sample = match model.consumer.pop() {
-            Some(f) => f,
-            None => 0.0,
-        };
-
-        buf.push(recorded_sample);
-        if buf.len() == 1024 {
-            model.current_level = buf
-                .iter()
-                .filter_map(|x| NotNan::new(x.abs()).ok())
-                .max()
-                .unwrap()
-                .into();
-
-            const SAMPLE_RATE: usize = 44100;
-            const SIZE: usize = 1024;
-            const PADDING: usize = SIZE / 2;
-
-            let mut detector = McLeodDetector::new(SIZE, PADDING);
-
-            if let Some(pitch) = detector.get_pitch(
-                &buf,
-                SAMPLE_RATE,
-                settings.power_threshold,
-                settings.clarity_threshold,
-            ) {
-                println!("pitch: {}, clarity: {}", pitch.frequency, pitch.clarity);
-                let frequency = pitch.frequency;
-                let midi = freq_to_midi(frequency);
-                new_pos.x = map_range(freq_to_midi_float(frequency), 50.0, 103.0, -8.8, 8.8);
-                model.current_note = midi_to_tab(midi, settings.key, &model.tuning_notes);
-            }
-            new_pos.y -= 0.1;
-            new_pos.z += 0.3;
-
-            if model.locations.len() == model.locations.capacity() {
-                model.locations.rotate_left(1);
-                model.locations.pop();
-            }
-            model.locations.push(new_pos);
-
-            buf.clear();
-        }
-    }
-
-    let mut direction = new_pos - model.camera_pos;
-    direction.x = 0.0;
-    model.camera_pos += direction;
 }
 
 fn edit_hsv(ui: &mut egui::Ui, color: &mut LinSrgb) {
