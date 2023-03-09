@@ -23,7 +23,7 @@ struct Model {
     settings: Settings,
 
     line_bounds: [f32; 2],
-    frequency_bounds: FreqBounds,
+    midi_bounds: MidiBounds,
 }
 
 struct Settings {
@@ -35,17 +35,14 @@ struct Settings {
     right_color: LinSrgb,
 }
 
-struct FreqBounds {
-    low: f32,
-    high: f32,
+struct MidiBounds {
+    low: u8,
+    high: u8,
 }
 
-impl Default for FreqBounds {
+impl Default for MidiBounds {
     fn default() -> Self {
-        Self {
-            low: 130.81,
-            high: 3135.96,
-        }
+        Self { low: 48, high: 103 }
     }
 }
 
@@ -100,7 +97,7 @@ fn model(app: &App) -> Model {
         ui_visible: true,
         egui,
         line_bounds: [-8.0, 8.0],
-        frequency_bounds: calc_freq_bounds("C"),
+        midi_bounds: calc_freq_bounds("C"),
         settings: Settings {
             power_threshold: 3.0,
             clarity_threshold: 0.7,
@@ -154,9 +151,9 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 let frequency = pitch.frequency;
                 let midi = freq_to_midi(frequency);
                 new_pos.x = map_range(
-                    frequency,
-                    model.frequency_bounds.low,
-                    model.frequency_bounds.high,
+                    freq_to_midi_float(frequency),
+                    model.midi_bounds.low as f32,
+                    model.midi_bounds.high as f32,
                     model.line_bounds[0],
                     model.line_bounds[1],
                 );
@@ -207,7 +204,7 @@ fn ui(model: &mut Model, update: Update) {
                 .show_ui(ui, |ui| {
                     for key in keys.iter() {
                         if ui.selectable_value(&mut settings.key, key, key).changed() {
-                            model.frequency_bounds = calc_freq_bounds(settings.key);
+                            model.midi_bounds = calc_freq_bounds(settings.key);
                         }
                     }
                 });
@@ -335,18 +332,18 @@ fn freq_to_midi(freq: f32) -> u8 {
     (12.0 * (freq / 440.0).log2() + 69.0).round() as u8
 }
 
-fn midi_to_freq(d: u8) -> f32 {
-    (2.0).pow((d as f32 - 69.0) / 12.0) as f32 * 440.0
-}
-
-fn calc_freq_bounds(key: &str) -> FreqBounds {
+fn calc_freq_bounds(key: &str) -> MidiBounds {
     const C4_MIDI: i8 = 60;
     const C7_MIDI: i8 = 96;
     let offset = get_harmonica_key_semitone_offset(key);
-    FreqBounds {
-        low: midi_to_freq((C4_MIDI + offset) as u8),
-        high: midi_to_freq((C7_MIDI + offset) as u8),
+    MidiBounds {
+        low: (C4_MIDI + offset) as u8,
+        high: (C7_MIDI + offset) as u8,
     }
+}
+
+fn freq_to_midi_float(freq: f32) -> f32 {
+    12.0 * (freq / 440.0).log2() + 69.0
 }
 
 fn get_harmonica_key_semitone_offset(key: &str) -> i8 {
