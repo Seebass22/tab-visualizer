@@ -21,6 +21,9 @@ struct Model {
     ui_visible: bool,
     egui: Egui,
     settings: Settings,
+
+    line_bounds: [f32; 2],
+    frequency_bounds: FreqBounds,
 }
 
 struct Settings {
@@ -30,6 +33,20 @@ struct Settings {
     tuning: &'static str,
     left_color: LinSrgb,
     right_color: LinSrgb,
+}
+
+struct FreqBounds {
+    low: f32,
+    high: f32,
+}
+
+impl Default for FreqBounds {
+    fn default() -> Self {
+        Self {
+            low: 130.81,
+            high: 3135.96,
+        }
+    }
 }
 
 fn main() {
@@ -82,6 +99,8 @@ fn model(app: &App) -> Model {
         current_level: 0.0,
         ui_visible: true,
         egui,
+        line_bounds: [-8.0, 8.0],
+        frequency_bounds: calc_freq_bounds("C"),
         settings: Settings {
             power_threshold: 3.0,
             clarity_threshold: 0.7,
@@ -134,7 +153,13 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 println!("pitch: {}, clarity: {}", pitch.frequency, pitch.clarity);
                 let frequency = pitch.frequency;
                 let midi = freq_to_midi(frequency);
-                new_pos.x = map_range(freq_to_midi_float(frequency), 50.0, 103.0, -8.8, 8.8);
+                new_pos.x = map_range(
+                    frequency,
+                    model.frequency_bounds.low,
+                    model.frequency_bounds.high,
+                    model.line_bounds[0],
+                    model.line_bounds[1],
+                );
                 model.current_note = midi_to_tab(midi, settings.key, &model.tuning_notes);
             }
             new_pos.y -= 0.1;
@@ -181,7 +206,9 @@ fn ui(model: &mut Model, update: Update) {
                 .selected_text(settings.key)
                 .show_ui(ui, |ui| {
                     for key in keys.iter() {
-                        ui.selectable_value(&mut settings.key, key, key);
+                        if ui.selectable_value(&mut settings.key, key, key).changed() {
+                            model.frequency_bounds = calc_freq_bounds(settings.key);
+                        }
                     }
                 });
 
@@ -308,12 +335,22 @@ fn freq_to_midi(freq: f32) -> u8 {
     (12.0 * (freq / 440.0).log2() + 69.0).round() as u8
 }
 
-fn freq_to_midi_float(freq: f32) -> f32 {
-    12.0 * (freq / 440.0).log2() + 69.0
+fn midi_to_freq(d: u8) -> f32 {
+    (2.0).pow((d as f32 - 69.0) / 12.0) as f32 * 440.0
 }
 
-fn midi_to_tab(midi: u8, key: &str, notes_in_order: &[String]) -> String {
-    let offset = match key {
+fn calc_freq_bounds(key: &str) -> FreqBounds {
+    const C4_MIDI: i8 = 60;
+    const C7_MIDI: i8 = 96;
+    let offset = get_harmonica_key_semitone_offset(key);
+    FreqBounds {
+        low: midi_to_freq((C4_MIDI + offset) as u8),
+        high: midi_to_freq((C7_MIDI + offset) as u8),
+    }
+}
+
+fn get_harmonica_key_semitone_offset(key: &str) -> i8 {
+    match key {
         "C" => 0,
         "G" => -5,
         "D" => 2,
@@ -333,8 +370,12 @@ fn midi_to_tab(midi: u8, key: &str, notes_in_order: &[String]) -> String {
         _ => {
             panic!()
         }
-    };
-    let index: isize = midi as isize - 60 - offset;
+    }
+}
+
+fn midi_to_tab(midi: u8, key: &str, notes_in_order: &[String]) -> String {
+    let offset = get_harmonica_key_semitone_offset(key);
+    let index: isize = midi as isize - 60 - offset as isize;
     if index < 0 || index > notes_in_order.len() as isize - 1 {
         return "".to_owned();
     }
