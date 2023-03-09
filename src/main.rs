@@ -1,3 +1,4 @@
+use nannou::color::{ConvertFrom, LinSrgb, Mix};
 use nannou::prelude::*;
 use nannou_audio as audio;
 use nannou_audio::Buffer;
@@ -27,6 +28,8 @@ struct Settings {
     clarity_threshold: f32,
     key: &'static str,
     tuning: &'static str,
+    left_color: LinSrgb,
+    right_color: LinSrgb,
 }
 
 fn main() {
@@ -84,6 +87,8 @@ fn model(app: &App) -> Model {
             clarity_threshold: 0.7,
             key: "C",
             tuning: "richter",
+            left_color: lin_srgb(0.0, 0.1, 0.8),
+            right_color: lin_srgb(1.0, 0.1, 0.8),
         },
     }
 }
@@ -145,6 +150,15 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                         }
                     }
                 });
+
+            ui.horizontal(|ui| {
+                edit_hsv(ui, &mut settings.left_color);
+                ui.label("Left color");
+            });
+            ui.horizontal(|ui| {
+                edit_hsv(ui, &mut settings.right_color);
+                ui.label("Right color");
+            });
 
             ui.label("F1 to hide");
         });
@@ -208,6 +222,27 @@ fn update(_app: &App, model: &mut Model, update: Update) {
     model.camera_pos += direction;
 }
 
+fn edit_hsv(ui: &mut egui::Ui, color: &mut LinSrgb) {
+    let hsv_color: Hsv = Hsv::convert_from(*color);
+    let mut egui_hsv = egui::color::Hsva::new(
+        hsv_color.hue.to_positive_radians() as f32 / (std::f32::consts::PI * 2.0),
+        hsv_color.saturation,
+        hsv_color.value,
+        1.0,
+    );
+
+    if egui::color_picker::color_edit_button_hsva(
+        ui,
+        &mut egui_hsv,
+        egui::color_picker::Alpha::Opaque,
+    )
+    .changed()
+    {
+        let hsv = nannou::color::hsv(egui_hsv.h, egui_hsv.s, egui_hsv.v);
+        *color = LinSrgb::convert_from(hsv);
+    }
+}
+
 fn to_screen_position(point: &Vec3) -> Vec2 {
     let z = point.z - 10.0;
     // z is always negative
@@ -227,10 +262,14 @@ fn view(app: &App, model: &Model, frame: Frame) {
         draw.background().color(BLACK);
     }
 
+    let left_color = model.settings.left_color;
+    let right_color = model.settings.right_color;
+
     let points_iter = model.locations.iter().map(|point| {
         let screen_pos = from_camera_view(*point, model);
-        let r = map_range(point.x, -8.0, 8.0, 1.0, 0.1);
-        (screen_pos, srgb(r, 0.1, 0.8))
+        let mix_factor = map_range(point.x, -8.0, 8.0, 0.0, 1.0);
+        let color = left_color.mix(&right_color, mix_factor);
+        (screen_pos, color)
     });
 
     draw.polyline()
