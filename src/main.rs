@@ -33,6 +33,7 @@ struct Settings {
     tuning: &'static str,
     left_color: LinSrgb,
     right_color: LinSrgb,
+    should_calc_bounds_from_key: bool,
 }
 
 struct MidiBounds {
@@ -105,6 +106,7 @@ fn model(app: &App) -> Model {
             tuning: "richter",
             left_color: lin_srgb(0.0, 0.1, 0.8),
             right_color: lin_srgb(1.0, 0.1, 0.8),
+            should_calc_bounds_from_key: true,
         },
     }
 }
@@ -201,7 +203,9 @@ fn ui(model: &mut Model, update: Update) {
                 .show_ui(ui, |ui| {
                     for key in keys.iter() {
                         if ui.selectable_value(&mut settings.key, key, key).changed() {
-                            model.midi_bounds = calc_freq_bounds(settings.key);
+                            if settings.should_calc_bounds_from_key {
+                                model.midi_bounds = calc_freq_bounds(settings.key);
+                            }
                         }
                     }
                 });
@@ -243,6 +247,20 @@ fn ui(model: &mut Model, update: Update) {
                 edit_hsv(ui, &mut settings.right_color);
                 ui.label("Right color");
             });
+
+            if ui
+                .checkbox(
+                    &mut settings.should_calc_bounds_from_key,
+                    "calculate bounds from key",
+                )
+                .changed()
+            {
+                if settings.should_calc_bounds_from_key {
+                    model.midi_bounds = calc_freq_bounds(settings.key);
+                } else {
+                    model.midi_bounds = MidiBounds::default();
+                }
+            }
 
             ui.label("F1 to hide");
         });
