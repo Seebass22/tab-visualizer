@@ -21,6 +21,7 @@ struct Model {
     ui_visible: bool,
     egui: Egui,
     settings: Settings,
+    is_running: bool,
 
     line_bounds: [f32; 2],
     midi_bounds: MidiBounds,
@@ -97,6 +98,7 @@ fn model(app: &App) -> Model {
         current_level: 0.0,
         ui_visible: true,
         egui,
+        is_running: false,
         line_bounds: [-8.0, 8.0],
         midi_bounds: calc_freq_bounds("C"),
         settings: Settings {
@@ -146,6 +148,7 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 settings.power_threshold,
                 settings.clarity_threshold,
             ) {
+                model.is_running = true;
                 println!("pitch: {}, clarity: {}", pitch.frequency, pitch.clarity);
                 let frequency = pitch.frequency;
                 let midi = freq_to_midi(frequency);
@@ -165,7 +168,9 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 model.locations.rotate_left(1);
                 model.locations.pop();
             }
-            model.locations.push(new_pos);
+            if model.is_running {
+                model.locations.push(new_pos);
+            }
 
             buf.clear();
         }
@@ -262,6 +267,11 @@ fn ui(model: &mut Model, update: Update) {
                 }
             }
 
+            if ui.button("reset").clicked() {
+                model.locations.clear();
+                model.is_running = false;
+            }
+
             ui.label("F1 to hide");
         });
     }
@@ -327,7 +337,9 @@ fn view(app: &App, model: &Model, frame: Frame) {
         .color(srgba(0.0, 0.0, 0.0, 0.15));
 
     let text_pos = from_camera_view(*model.locations.last().unwrap_or(&Vec3::ZERO), model);
-    draw.text(&model.current_note).x(text_pos.x).font_size(32);
+    if model.is_running {
+        draw.text(&model.current_note).x(text_pos.x).font_size(32);
+    }
 
     draw.to_frame(app, &frame).unwrap();
     model.egui.draw_to_frame(&frame).unwrap();
