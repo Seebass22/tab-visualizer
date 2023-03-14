@@ -2631,7 +2631,6 @@ dependencies = [
  "nannou_egui",
  "ordered-float 3.4.0",
  "pitch-detection",
- "rand 0.8.5",
  "ringbuf",
 ]
 
