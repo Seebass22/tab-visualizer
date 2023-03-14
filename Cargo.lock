@@ -1600,20 +1600,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nannou-test"
-version = "0.1.0"
-dependencies = [
- "harptabber",
- "nannou",
- "nannou_audio",
- "nannou_egui",
- "ordered-float 3.4.0",
- "pitch-detection",
- "rand 0.8.5",
- "ringbuf",
-]
-
-[[package]]
 name = "nannou_audio"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2633,6 +2619,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "tab-visualizer"
+version = "0.1.0"
+dependencies = [
+ "harptabber",
+ "nannou",
+ "nannou_audio",
+ "nannou_egui",
+ "ordered-float 3.4.0",
+ "pitch-detection",
+ "rand 0.8.5",
+ "ringbuf",
 ]
 
 [[package]]
