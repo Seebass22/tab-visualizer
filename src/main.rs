@@ -6,7 +6,7 @@ use nannou_egui::{self, egui, Egui};
 use ordered_float::NotNan;
 use pitch_detection::detector::mcleod::McLeodDetector;
 use pitch_detection::detector::PitchDetector;
-use ringbuf::{Consumer, Producer, RingBuffer};
+use ringbuf::HeapRb;
 
 const LINE_LENGTH: usize = 4096;
 
@@ -14,7 +14,7 @@ struct Model {
     locations: Vec<Vec3>,
     camera_pos: Vec3,
     _in_stream: audio::Stream<InputModel>,
-    consumer: Consumer<f32>,
+    consumer: ringbuf::HeapConsumer<f32>,
     tuning_notes: Vec<String>,
     current_note: String,
     current_level: f32,
@@ -70,7 +70,7 @@ fn model(app: &App) -> Model {
 
     // Create a ring buffer and split it into producer and consumer
     let latency_samples = 8192;
-    let ring_buffer = RingBuffer::<f32>::new(latency_samples * 2); // Add some latency
+    let ring_buffer = HeapRb::<f32>::new(latency_samples * 2); // Add some latency
     let (mut prod, cons) = ring_buffer.split();
     for _ in 0..latency_samples {
         // The ring buffer has twice as much space as necessary to add latency here,
@@ -346,7 +346,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
 }
 
 struct InputModel {
-    pub producer: Producer<f32>,
+    pub producer: ringbuf::HeapProducer<f32>,
 }
 
 fn pass_in(model: &mut InputModel, buffer: &Buffer) {
