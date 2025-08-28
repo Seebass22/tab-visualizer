@@ -1,3 +1,5 @@
+use std::mem::MaybeUninit;
+
 use nannou::color::{ConvertFrom, LinSrgb, Mix};
 use nannou::prelude::*;
 use nannou_audio as audio;
@@ -6,12 +8,12 @@ use nannou_egui::{self, egui, Egui};
 use ordered_float::NotNan;
 use pitch_detection::detector::mcleod::McLeodDetector;
 use pitch_detection::detector::PitchDetector;
-use ringbuf::HeapRb;
+use ringbuf::{HeapRb, LocalRb, Rb};
 
-const LINE_LENGTH: usize = 4096;
+const LINE_LENGTH: usize = 1024;
 
 struct Model {
-    locations: Vec<Vec3>,
+    locations: LocalRb<Vec3, Vec<MaybeUninit<Vec3>>>,
     camera_pos: Vec3,
     _in_stream: audio::Stream<InputModel>,
     consumer: ringbuf::HeapConsumer<f32>,
@@ -89,7 +91,8 @@ fn model(app: &App) -> Model {
     in_stream.play().unwrap();
 
     Model {
-        locations: Vec::with_capacity(LINE_LENGTH),
+        // locations: Vec::with_capacity(LINE_LENGTH),
+        locations: LocalRb::new(LINE_LENGTH),
         camera_pos: Vec3::ZERO,
         _in_stream: in_stream,
         consumer: cons,
@@ -114,10 +117,11 @@ fn model(app: &App) -> Model {
 }
 
 fn update(_app: &App, model: &mut Model, update: Update) {
+    println!("{}", model.locations.len());
     ui(model, update);
     let settings = &mut model.settings;
 
-    let mut new_pos = if let Some(pos) = model.locations.last() {
+    let mut new_pos = if let Some(pos) = model.locations.iter().last() {
         *pos
     } else {
         Vec3::ZERO
@@ -164,12 +168,8 @@ fn update(_app: &App, model: &mut Model, update: Update) {
             new_pos.y -= 0.1;
             new_pos.z += 0.3;
 
-            if model.locations.len() == model.locations.capacity() {
-                model.locations.rotate_left(1);
-                model.locations.pop();
-            }
             if model.is_running {
-                model.locations.push(new_pos);
+                model.locations.push_overwrite(new_pos);
             }
 
             buf.clear();
@@ -207,10 +207,10 @@ fn ui(model: &mut Model, update: Update) {
                 .selected_text(settings.key)
                 .show_ui(ui, |ui| {
                     for key in keys.iter() {
-                        if ui.selectable_value(&mut settings.key, key, key).changed() {
-                            if settings.should_calc_bounds_from_key {
-                                model.midi_bounds = calc_freq_bounds(settings.key);
-                            }
+                        if ui.selectable_value(&mut settings.key, key, key).changed()
+                            && settings.should_calc_bounds_from_key
+                        {
+                            model.midi_bounds = calc_freq_bounds(settings.key);
                         }
                     }
                 });
@@ -336,7 +336,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
         .w_h(2000.0, 2000.0)
         .color(srgba(0.0, 0.0, 0.0, 0.15));
 
-    let text_pos = from_camera_view(*model.locations.last().unwrap_or(&Vec3::ZERO), model);
+    let text_pos = from_camera_view(*model.locations.iter().last().unwrap_or(&Vec3::ZERO), model);
     if model.is_running {
         draw.text(&model.current_note).x(text_pos.x).font_size(32);
     }
