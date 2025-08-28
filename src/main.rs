@@ -165,7 +165,7 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 );
                 model.current_note = midi_to_tab(midi, settings.key, &model.tuning_notes);
             }
-            new_pos.y -= 0.1;
+            new_pos.y -= 0.22;
             new_pos.z += 0.3;
 
             if model.is_running {
@@ -303,7 +303,7 @@ fn to_screen_position(point: &Vec3) -> Vec2 {
     // z is always negative
     let x = point.x / (0.01 * -z);
     let y = point.y / (0.01 * -z);
-    Vec2::new(10.0 * x, 10.0 * y)
+    Vec2::new(10.0 * x, 10.0 * y - 300.0)
 }
 
 fn from_camera_view(point: Vec3, model: &Model) -> Vec2 {
@@ -338,7 +338,10 @@ fn view(app: &App, model: &Model, frame: Frame) {
 
     let text_pos = from_camera_view(*model.locations.iter().last().unwrap_or(&Vec3::ZERO), model);
     if model.is_running {
-        draw.text(&model.current_note).x(text_pos.x).font_size(32);
+        draw.text(&model.current_note)
+            .x(text_pos.x)
+            .y(-310.0)
+            .font_size(32);
     }
 
     draw.to_frame(app, &frame).unwrap();
