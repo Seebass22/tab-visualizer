@@ -27,6 +27,7 @@ struct Model {
 
     line_bounds: [f32; 2],
     midi_bounds: MidiBounds,
+    bound_offsets: (i8, i8),
 }
 
 struct Settings {
@@ -103,7 +104,8 @@ fn model(app: &App) -> Model {
         egui,
         is_running: false,
         line_bounds: [-8.0, 8.0],
-        midi_bounds: calc_freq_bounds("C"),
+        midi_bounds: calc_freq_bounds("C", 0, 0),
+        bound_offsets: (0, 0),
         settings: Settings {
             power_threshold: 3.0,
             clarity_threshold: 0.7,
@@ -117,7 +119,6 @@ fn model(app: &App) -> Model {
 }
 
 fn update(_app: &App, model: &mut Model, update: Update) {
-    println!("{}", model.locations.len());
     ui(model, update);
     let settings = &mut model.settings;
 
@@ -210,7 +211,11 @@ fn ui(model: &mut Model, update: Update) {
                         if ui.selectable_value(&mut settings.key, key, key).changed()
                             && settings.should_calc_bounds_from_key
                         {
-                            model.midi_bounds = calc_freq_bounds(settings.key);
+                            model.midi_bounds = calc_freq_bounds(
+                                settings.key,
+                                model.bound_offsets.0,
+                                model.bound_offsets.1,
+                            );
                         }
                     }
                 });
@@ -261,10 +266,31 @@ fn ui(model: &mut Model, update: Update) {
                 .changed()
             {
                 if settings.should_calc_bounds_from_key {
-                    model.midi_bounds = calc_freq_bounds(settings.key);
+                    model.midi_bounds = calc_freq_bounds(
+                        settings.key,
+                        model.bound_offsets.0,
+                        model.bound_offsets.1,
+                    );
                 } else {
                     model.midi_bounds = MidiBounds::default();
                 }
+            }
+
+            ui.label("left offset:");
+            if ui
+                .add(egui::Slider::new(&mut model.bound_offsets.0, 0..=24))
+                .changed()
+            {
+                model.midi_bounds =
+                    calc_freq_bounds(settings.key, model.bound_offsets.0, model.bound_offsets.1);
+            }
+            ui.label("right offset:");
+            if ui
+                .add(egui::Slider::new(&mut model.bound_offsets.1, -24..=0))
+                .changed()
+            {
+                model.midi_bounds =
+                    calc_freq_bounds(settings.key, model.bound_offsets.0, model.bound_offsets.1);
             }
 
             if ui.button("reset").clicked() {
@@ -362,13 +388,13 @@ fn freq_to_midi(freq: f32) -> u8 {
     (12.0 * (freq / 440.0).log2() + 69.0).round() as u8
 }
 
-fn calc_freq_bounds(key: &str) -> MidiBounds {
+fn calc_freq_bounds(key: &str, low_offset: i8, high_offset: i8) -> MidiBounds {
     const C4_MIDI: i8 = 60;
     const C7_MIDI: i8 = 96;
     let offset = get_harmonica_key_semitone_offset(key);
     MidiBounds {
-        low: (C4_MIDI + offset) as u8,
-        high: (C7_MIDI + offset) as u8,
+        low: (C4_MIDI + offset + low_offset) as u8,
+        high: (C7_MIDI + offset + high_offset) as u8,
     }
 }
 
