@@ -6,10 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nannou = "0.18.1"
-nannou_audio = "0.18.0"
+nannou = "0.19.0"
+nannou_audio = "0.19.0"
 ringbuf = "0.3.3"
 pitch-detection = "0.3.0"
-nannou_egui = "0.5.0"
+nannou_egui = "0.19.0"
 harptabber = { git = "https://github.com/Seebass22/harptabber", rev = "2ebf4b0" }
 ordered-float = "3.4.0"

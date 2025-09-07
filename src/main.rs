@@ -208,7 +208,7 @@ fn ui(model: &mut Model, update: Update) {
                 .selected_text(settings.key)
                 .show_ui(ui, |ui| {
                     for key in keys.iter() {
-                        if ui.selectable_value(&mut settings.key, key, key).changed()
+                        if ui.selectable_value(&mut settings.key, key, *key).changed()
                             && settings.should_calc_bounds_from_key
                         {
                             model.midi_bounds = calc_freq_bounds(
@@ -239,7 +239,7 @@ fn ui(model: &mut Model, update: Update) {
                 .selected_text(settings.tuning)
                 .width(150.0)
                 .show_ui(ui, |ui| {
-                    for tuning in tunings.iter() {
+                    for &tuning in tunings.iter() {
                         if ui
                             .selectable_value(&mut settings.tuning, tuning, tuning)
                             .changed()
@@ -305,7 +305,7 @@ fn ui(model: &mut Model, update: Update) {
 
 fn edit_hsv(ui: &mut egui::Ui, color: &mut LinSrgb) {
     let hsv_color: Hsv = Hsv::convert_from(*color);
-    let mut egui_hsv = egui::color::Hsva::new(
+    let mut egui_hsv = egui::ecolor::Hsva::new(
         hsv_color.hue.to_positive_radians() / (std::f32::consts::PI * 2.0),
         hsv_color.saturation,
         hsv_color.value,
