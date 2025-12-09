@@ -15,8 +15,7 @@ use ringbuf::{HeapRb, LocalRb, Rb};
 const LINE_LENGTH: usize = 1024;
 
 struct Model {
-    locations: LocalRb<Vec3, Vec<MaybeUninit<Vec3>>>,
-    camera_pos: Vec3,
+    locations: LocalRb<Vec2, Vec<MaybeUninit<Vec2>>>,
     _in_stream: audio::Stream<InputModel>,
     consumer: ringbuf::HeapConsumer<f32>,
     tuning_notes: Vec<String>,
@@ -145,7 +144,6 @@ fn model(app: &App) -> Model {
     Model {
         // locations: Vec::with_capacity(LINE_LENGTH),
         locations: LocalRb::new(LINE_LENGTH),
-        camera_pos: Vec3::ZERO,
         _in_stream: in_stream,
         consumer: cons,
         tuning_notes,
@@ -174,12 +172,6 @@ fn model(app: &App) -> Model {
 fn update(_app: &App, model: &mut Model, update: Update) {
     ui(model, update);
     let settings = &mut model.settings;
-
-    let mut new_pos = if let Some(pos) = model.locations.iter().last() {
-        *pos
-    } else {
-        Vec3::ZERO
-    };
 
     let mut buf = Vec::with_capacity(1024);
     while !model.consumer.is_empty() {
@@ -210,29 +202,22 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 println!("pitch: {}, clarity: {}", pitch.frequency, pitch.clarity);
                 let frequency = pitch.frequency;
                 let midi = freq_to_midi(frequency);
-                new_pos.x = map_range(
-                    freq_to_midi_float(frequency),
-                    model.midi_bounds.low as f32,
-                    model.midi_bounds.high as f32,
-                    model.line_bounds[0],
-                    model.line_bounds[1],
-                );
+                let note_index = (midi as i32) - 60;
+                if let Some(pos) = model.note_positions.get(note_index as usize) {
+                    if model.is_running {
+                        model.locations.push_overwrite(*pos);
+                    }
+                }
                 model.current_note = midi_to_tab(midi, settings.key, &model.tuning_notes);
             }
-            new_pos.y -= 0.22;
-            new_pos.z += 0.3;
 
-            if model.is_running {
-                model.locations.push_overwrite(new_pos);
-            }
+            // if model.is_running {
+            //     model.locations.push_overwrite(new_pos);
+            // }
 
             buf.clear();
         }
     }
-
-    let mut direction = new_pos - model.camera_pos;
-    direction.x = 0.0;
-    model.camera_pos += direction;
 }
 
 fn ui(model: &mut Model, update: Update) {
@@ -377,19 +362,6 @@ fn edit_hsv(ui: &mut egui::Ui, color: &mut LinSrgb) {
     }
 }
 
-fn to_screen_position(point: &Vec3) -> Vec2 {
-    let z = point.z - 10.0;
-    // z is always negative
-    let x = point.x / (0.01 * -z);
-    let y = point.y / (0.01 * -z);
-    Vec2::new(10.0 * x, 10.0 * y - 300.0)
-}
-
-fn from_camera_view(point: Vec3, model: &Model) -> Vec2 {
-    let point = point - model.camera_pos;
-    to_screen_position(&point)
-}
-
 fn view(app: &App, model: &Model, frame: Frame) {
     let draw = app.draw();
     if app.elapsed_frames() == 1 {
@@ -397,33 +369,22 @@ fn view(app: &App, model: &Model, frame: Frame) {
     }
     draw.texture(&model.texture);
 
-    if !model.note_positions.is_empty() {
-        draw.polyline()
-            .weight(2.0)
-            .color(WHITE)
-            .points(model.note_positions.iter().copied());
-    }
-
     let left_color = model.settings.left_color;
     let right_color = model.settings.right_color;
 
-    let points_iter = model.locations.iter().map(|point| {
-        let screen_pos = from_camera_view(*point, model);
-        let mix_factor = map_range(point.x, -8.0, 8.0, 0.0, 1.0);
-        let color = left_color.mix(&right_color, mix_factor);
-        (screen_pos, color)
-    });
-
-    draw.polyline()
-        .weight(10.0 * model.current_level + 1.0)
-        .points_colored(points_iter);
+    if model.locations.len() > 2 {
+        draw.polyline()
+            .weight(10.0 * model.current_level + 1.0)
+            .color(WHITE)
+            .points(model.locations.iter().copied());
+    }
 
     // soft clear screen
     draw.rect()
         .w_h(2000.0, 2000.0)
         .color(srgba(0.0, 0.0, 0.0, 0.15));
 
-    let text_pos = from_camera_view(*model.locations.iter().last().unwrap_or(&Vec3::ZERO), model);
+    let text_pos = Vec2::ZERO;
     if model.is_running {
         draw.text(&model.current_note)
             .x(text_pos.x)
