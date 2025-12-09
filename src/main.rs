@@ -1,4 +1,5 @@
 use std::mem::MaybeUninit;
+use std::path::Path;
 
 use nannou::color::{ConvertFrom, LinSrgb, Mix};
 use nannou::prelude::*;
@@ -8,6 +9,7 @@ use nannou_egui::{self, egui, Egui};
 use ordered_float::NotNan;
 use pitch_detection::detector::mcleod::McLeodDetector;
 use pitch_detection::detector::PitchDetector;
+use regex::Regex;
 use ringbuf::{HeapRb, LocalRb, Rb};
 
 const LINE_LENGTH: usize = 1024;
@@ -28,6 +30,51 @@ struct Model {
     line_bounds: [f32; 2],
     midi_bounds: MidiBounds,
     bound_offsets: (i8, i8),
+
+    texture: wgpu::Texture,
+    note_positions: Vec<Vec2>,
+}
+
+fn calc_note_positions(tuning_notes: &[String]) -> Vec<Vec2> {
+    let re = Regex::new(r"(?P<dir>-?)(?P<note>\d{1,2})(?P<rest>.*)").unwrap();
+    let blow_y = 31.0;
+    let draw_y = -10.0;
+    let draw_x = -250.0;
+    let hole_x_dist = 55.0;
+    let hole_y_dist = 21.0;
+    let mut res = Vec::new();
+    println!("{:?}", tuning_notes);
+
+    for note in tuning_notes.iter() {
+        if let Some(caps) = re.captures(note) {
+            let direction = &caps["dir"]; // "-" or ""
+            let bends_or_ob = &caps["rest"];
+            println!("{}, {}, {}", direction, &caps["note"], bends_or_ob);
+
+            let mut y = if direction == "-" { draw_y } else { blow_y };
+
+            if let Ok(note_n) = &caps["note"].parse::<usize>() {
+                let x = draw_x + (note_n - 1) as f32 * hole_x_dist;
+                let y_offset = bends_or_ob.len() as f32 * hole_y_dist;
+
+                if direction == "-" {
+                    y -= y_offset;
+                } else {
+                    y += y_offset;
+                }
+                res.push(Vec2::new(x, y));
+            } else {
+                // invalid note numeber?
+                res.push(Vec2::new(1000.0, 1000.0));
+                println!("note {} not found", note);
+            }
+        } else {
+            // regex miss?
+            res.push(Vec2::new(1000.0, 1000.0));
+            println!("note {} not found", note);
+        }
+    }
+    res
 }
 
 struct Settings {
@@ -91,13 +138,17 @@ fn model(app: &App) -> Model {
 
     in_stream.play().unwrap();
 
+    let texture = wgpu::Texture::from_path(app, Path::new("layout.png")).unwrap();
+    let tuning_notes = harptabber::tuning_to_notes_in_order("richter").0;
+    let note_positions = calc_note_positions(&tuning_notes);
+
     Model {
         // locations: Vec::with_capacity(LINE_LENGTH),
         locations: LocalRb::new(LINE_LENGTH),
         camera_pos: Vec3::ZERO,
         _in_stream: in_stream,
         consumer: cons,
-        tuning_notes: harptabber::tuning_to_notes_in_order("richter").0,
+        tuning_notes,
         current_note: "4".to_owned(),
         current_level: 0.0,
         ui_visible: true,
@@ -115,6 +166,8 @@ fn model(app: &App) -> Model {
             right_color: lin_srgb(1.0, 0.1, 0.8),
             should_calc_bounds_from_key: true,
         },
+        texture,
+        note_positions,
     }
 }
 
@@ -341,6 +394,14 @@ fn view(app: &App, model: &Model, frame: Frame) {
     let draw = app.draw();
     if app.elapsed_frames() == 1 {
         draw.background().color(BLACK);
+    }
+    draw.texture(&model.texture);
+
+    if !model.note_positions.is_empty() {
+        draw.polyline()
+            .weight(2.0)
+            .color(WHITE)
+            .points(model.note_positions.iter().copied());
     }
 
     let left_color = model.settings.left_color;
