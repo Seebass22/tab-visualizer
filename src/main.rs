@@ -260,8 +260,9 @@ fn ui(model: &mut Model, update: Update) {
 
 fn view(app: &App, model: &Model, frame: Frame) {
     let draw = app.draw();
+    let bg_color = srgba(0.106, 0.106, 0.106, 1.0);
     if app.elapsed_frames() == 1 {
-        draw.background().color(BLACK);
+        draw.background().color(bg_color);
     }
     draw.texture(&model.texture);
 
@@ -283,7 +284,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
     // soft clear screen
     draw.rect()
         .w_h(2000.0, 2000.0)
-        .color(srgba(0.0, 0.0, 0.0, 0.15));
+        .color(srgba(0.106, 0.106, 0.106, 0.15));
 
     let text_pos = Vec2::ZERO;
     if model.is_running {
