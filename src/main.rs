@@ -1,7 +1,5 @@
-use std::mem::MaybeUninit;
 use std::path::Path;
 
-use nannou::color::{ConvertFrom, LinSrgb};
 use nannou::prelude::*;
 use nannou_audio as audio;
 use nannou_audio::Buffer;
@@ -10,12 +8,9 @@ use ordered_float::NotNan;
 use pitch_detection::detector::mcleod::McLeodDetector;
 use pitch_detection::detector::PitchDetector;
 use regex::Regex;
-use ringbuf::{HeapRb, LocalRb, Rb};
-
-const LINE_LENGTH: usize = 1024;
+use ringbuf::HeapRb;
 
 struct Model {
-    locations: LocalRb<Vec2, Vec<MaybeUninit<Vec2>>>,
     _in_stream: audio::Stream<InputModel>,
     consumer: ringbuf::HeapConsumer<f32>,
     tuning_notes: Vec<String>,
@@ -78,9 +73,6 @@ struct Settings {
     clarity_threshold: f32,
     key: &'static str,
     tuning: &'static str,
-    left_color: LinSrgb,
-    right_color: LinSrgb,
-    should_calc_bounds_from_key: bool,
 }
 
 fn main() {
@@ -128,7 +120,6 @@ fn model(app: &App) -> Model {
     let note_positions = calc_note_positions(&tuning_notes);
 
     Model {
-        locations: LocalRb::new(LINE_LENGTH),
         _in_stream: in_stream,
         consumer: cons,
         tuning_notes,
@@ -142,9 +133,6 @@ fn model(app: &App) -> Model {
             clarity_threshold: 0.7,
             key: "C",
             tuning: "richter",
-            left_color: lin_srgb(0.0, 0.1, 0.8),
-            right_color: lin_srgb(1.0, 0.1, 0.8),
-            should_calc_bounds_from_key: true,
         },
         texture,
         note_positions,
@@ -186,11 +174,8 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 let frequency = pitch.frequency;
                 let midi = freq_to_midi(frequency);
                 let note_index = (midi as i32) - 60;
-                if let Some(pos) = model.note_positions.get(note_index as usize) {
+                if let Some(_) = model.note_positions.get(note_index as usize) {
                     model.last_frequency = frequency;
-                    if model.is_running {
-                        model.locations.push_overwrite(*pos);
-                    }
                 }
                 model.current_note = midi_to_tab(midi, settings.key, &model.tuning_notes);
             }
@@ -230,9 +215,7 @@ fn ui(model: &mut Model, update: Update) {
                 .selected_text(settings.key)
                 .show_ui(ui, |ui| {
                     for key in keys.iter() {
-                        if ui.selectable_value(&mut settings.key, key, *key).changed()
-                            && settings.should_calc_bounds_from_key
-                        {
+                        if ui.selectable_value(&mut settings.key, key, *key).changed() {
                             // TODO
                         }
                     }
@@ -267,43 +250,8 @@ fn ui(model: &mut Model, update: Update) {
                     }
                 });
 
-            ui.horizontal(|ui| {
-                edit_hsv(ui, &mut settings.left_color);
-                ui.label("Left color");
-            });
-            ui.horizontal(|ui| {
-                edit_hsv(ui, &mut settings.right_color);
-                ui.label("Right color");
-            });
-
-            if ui.button("reset").clicked() {
-                model.locations.clear();
-                model.is_running = false;
-            }
-
             ui.label("F1 to hide");
         });
-    }
-}
-
-fn edit_hsv(ui: &mut egui::Ui, color: &mut LinSrgb) {
-    let hsv_color: Hsv = Hsv::convert_from(*color);
-    let mut egui_hsv = egui::ecolor::Hsva::new(
-        hsv_color.hue.to_positive_radians() / (std::f32::consts::PI * 2.0),
-        hsv_color.saturation,
-        hsv_color.value,
-        1.0,
-    );
-
-    if egui::color_picker::color_edit_button_hsva(
-        ui,
-        &mut egui_hsv,
-        egui::color_picker::Alpha::Opaque,
-    )
-    .changed()
-    {
-        let hsv = nannou::color::hsv(egui_hsv.h, egui_hsv.s, egui_hsv.v);
-        *color = LinSrgb::convert_from(hsv);
     }
 }
 
