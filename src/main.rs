@@ -338,7 +338,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
     if model.is_running {
         draw.text(&model.current_note)
             .x(text_pos.x)
-            .y(-310.0)
+            .y(-110.0)
             .font_size(32);
     }
 
