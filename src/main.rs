@@ -319,7 +319,13 @@ fn view(app: &App, model: &Model, frame: Frame) {
     let note_index = (midi as i32) - 60;
     if let Some(pos) = model.note_positions.get(note_index as usize) {
         if model.is_running {
-            draw.ellipse().x(pos.x).y(pos.y).wh(Vec2::new(10.0, 10.0));
+            if model.current_level > 0.05 {
+                let fac = (model.current_level * 10.0).min(2.0);
+                draw.ellipse()
+                    .x(pos.x)
+                    .y(pos.y)
+                    .wh(Vec2::new(fac * 10.0, fac * 10.0));
+            }
         }
     }
 
