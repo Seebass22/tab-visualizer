@@ -85,7 +85,7 @@ fn model(app: &App) -> Model {
         .view(view)
         .raw_event(raw_window_event)
         .key_pressed(key_pressed)
-        .size(1920, 1080)
+        .size(640, 280)
         .build()
         .unwrap();
 
@@ -125,7 +125,7 @@ fn model(app: &App) -> Model {
         tuning_notes,
         current_note: "4".to_owned(),
         current_level: 0.0,
-        ui_visible: true,
+        ui_visible: false,
         egui,
         is_running: false,
         settings: Settings {
@@ -245,7 +245,10 @@ fn ui(model: &mut Model, update: Update) {
                             .selectable_value(&mut settings.tuning, tuning, tuning)
                             .changed()
                         {
-                            model.tuning_notes = harptabber::tuning_to_notes_in_order(tuning).0;
+                            let tuning_notes = harptabber::tuning_to_notes_in_order(tuning).0;
+                            model.note_positions = calc_note_positions(&tuning_notes);
+                            model.tuning_notes = tuning_notes;
+                            // TODO change image
                         }
                     }
                 });
