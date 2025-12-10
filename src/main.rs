@@ -1,7 +1,7 @@
 use std::mem::MaybeUninit;
 use std::path::Path;
 
-use nannou::color::{ConvertFrom, LinSrgb, Mix};
+use nannou::color::{ConvertFrom, LinSrgb};
 use nannou::prelude::*;
 use nannou_audio as audio;
 use nannou_audio::Buffer;
@@ -26,12 +26,9 @@ struct Model {
     settings: Settings,
     is_running: bool,
 
-    line_bounds: [f32; 2],
-    midi_bounds: MidiBounds,
-    bound_offsets: (i8, i8),
-
     texture: wgpu::Texture,
     note_positions: Vec<Vec2>,
+    last_frequency: f32,
 }
 
 fn calc_note_positions(tuning_notes: &[String]) -> Vec<Vec2> {
@@ -86,17 +83,6 @@ struct Settings {
     should_calc_bounds_from_key: bool,
 }
 
-struct MidiBounds {
-    low: u8,
-    high: u8,
-}
-
-impl Default for MidiBounds {
-    fn default() -> Self {
-        Self { low: 48, high: 103 }
-    }
-}
-
 fn main() {
     nannou::app(model).update(update).run();
 }
@@ -142,7 +128,6 @@ fn model(app: &App) -> Model {
     let note_positions = calc_note_positions(&tuning_notes);
 
     Model {
-        // locations: Vec::with_capacity(LINE_LENGTH),
         locations: LocalRb::new(LINE_LENGTH),
         _in_stream: in_stream,
         consumer: cons,
@@ -152,9 +137,6 @@ fn model(app: &App) -> Model {
         ui_visible: true,
         egui,
         is_running: false,
-        line_bounds: [-8.0, 8.0],
-        midi_bounds: calc_freq_bounds("C", 0, 0),
-        bound_offsets: (0, 0),
         settings: Settings {
             power_threshold: 3.0,
             clarity_threshold: 0.7,
@@ -166,6 +148,7 @@ fn model(app: &App) -> Model {
         },
         texture,
         note_positions,
+        last_frequency: 0.0,
     }
 }
 
@@ -204,6 +187,7 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 let midi = freq_to_midi(frequency);
                 let note_index = (midi as i32) - 60;
                 if let Some(pos) = model.note_positions.get(note_index as usize) {
+                    model.last_frequency = frequency;
                     if model.is_running {
                         model.locations.push_overwrite(*pos);
                     }
@@ -249,11 +233,7 @@ fn ui(model: &mut Model, update: Update) {
                         if ui.selectable_value(&mut settings.key, key, *key).changed()
                             && settings.should_calc_bounds_from_key
                         {
-                            model.midi_bounds = calc_freq_bounds(
-                                settings.key,
-                                model.bound_offsets.0,
-                                model.bound_offsets.1,
-                            );
+                            // TODO
                         }
                     }
                 });
@@ -296,41 +276,6 @@ fn ui(model: &mut Model, update: Update) {
                 ui.label("Right color");
             });
 
-            if ui
-                .checkbox(
-                    &mut settings.should_calc_bounds_from_key,
-                    "calculate bounds from key",
-                )
-                .changed()
-            {
-                if settings.should_calc_bounds_from_key {
-                    model.midi_bounds = calc_freq_bounds(
-                        settings.key,
-                        model.bound_offsets.0,
-                        model.bound_offsets.1,
-                    );
-                } else {
-                    model.midi_bounds = MidiBounds::default();
-                }
-            }
-
-            ui.label("left offset:");
-            if ui
-                .add(egui::Slider::new(&mut model.bound_offsets.0, 0..=24))
-                .changed()
-            {
-                model.midi_bounds =
-                    calc_freq_bounds(settings.key, model.bound_offsets.0, model.bound_offsets.1);
-            }
-            ui.label("right offset:");
-            if ui
-                .add(egui::Slider::new(&mut model.bound_offsets.1, -24..=0))
-                .changed()
-            {
-                model.midi_bounds =
-                    calc_freq_bounds(settings.key, model.bound_offsets.0, model.bound_offsets.1);
-            }
-
             if ui.button("reset").clicked() {
                 model.locations.clear();
                 model.is_running = false;
@@ -369,14 +314,13 @@ fn view(app: &App, model: &Model, frame: Frame) {
     }
     draw.texture(&model.texture);
 
-    let left_color = model.settings.left_color;
-    let right_color = model.settings.right_color;
-
-    if model.locations.len() > 2 {
-        draw.polyline()
-            .weight(10.0 * model.current_level + 1.0)
-            .color(WHITE)
-            .points(model.locations.iter().copied());
+    let midi = freq_to_midi(model.last_frequency);
+    let midi_f = freq_to_midi_float(model.last_frequency);
+    let note_index = (midi as i32) - 60;
+    if let Some(pos) = model.note_positions.get(note_index as usize) {
+        if model.is_running {
+            draw.ellipse().x(pos.x).y(pos.y).wh(Vec2::new(10.0, 10.0));
+        }
     }
 
     // soft clear screen
@@ -408,16 +352,6 @@ fn pass_in(model: &mut InputModel, buffer: &Buffer) {
 
 fn freq_to_midi(freq: f32) -> u8 {
     (12.0 * (freq / 440.0).log2() + 69.0).round() as u8
-}
-
-fn calc_freq_bounds(key: &str, low_offset: i8, high_offset: i8) -> MidiBounds {
-    const C4_MIDI: i8 = 60;
-    const C7_MIDI: i8 = 96;
-    let offset = get_harmonica_key_semitone_offset(key);
-    MidiBounds {
-        low: (C4_MIDI + offset + low_offset) as u8,
-        high: (C7_MIDI + offset + high_offset) as u8,
-    }
 }
 
 fn freq_to_midi_float(freq: f32) -> f32 {
