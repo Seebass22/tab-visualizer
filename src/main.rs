@@ -265,12 +265,26 @@ fn view(app: &App, model: &Model, frame: Frame) {
     if app.elapsed_frames() == 1 {
         draw.background().color(bg_color);
     }
-    // soft clear screen
+
     draw.rect()
         .w_h(2000.0, 2000.0)
         .color(srgba(0.106, 0.106, 0.106, 1.00));
 
-    draw.texture(&model.texture);
+    let text_pos = Vec2::ZERO;
+    if model.is_running {
+        draw.text(&model.current_note)
+            .x(text_pos.x)
+            .y(-110.0)
+            .font_size(32);
+    }
+
+    // draw.texture(&model.texture);
+    for &pos in model.note_positions.iter() {
+        draw.rect()
+            .xy(pos)
+            .wh(Vec2::new(50.0, 18.0))
+            .color(DARKGRAY);
+    }
 
     let midi = freq_to_midi(model.last_frequency);
     let midi_f = freq_to_midi_float(model.last_frequency);
@@ -286,13 +300,6 @@ fn view(app: &App, model: &Model, frame: Frame) {
                     .wh(Vec2::new(fac * 10.0, fac * 10.0));
             }
         }
-    }
-    let text_pos = Vec2::ZERO;
-    if model.is_running {
-        draw.text(&model.current_note)
-            .x(text_pos.x)
-            .y(-110.0)
-            .font_size(32);
     }
 
     draw.to_frame(app, &frame).unwrap();
