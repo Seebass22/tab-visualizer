@@ -173,7 +173,8 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 println!("pitch: {}, clarity: {}", pitch.frequency, pitch.clarity);
                 let frequency = pitch.frequency;
                 let midi = freq_to_midi(frequency);
-                let note_index = (midi as i32) - 60;
+                let note_index =
+                    (midi as i32) - 60 - get_harmonica_key_semitone_offset(settings.key) as i32;
                 if let Some(_) = model.note_positions.get(note_index as usize) {
                     model.last_frequency = frequency;
                 }
@@ -264,11 +265,17 @@ fn view(app: &App, model: &Model, frame: Frame) {
     if app.elapsed_frames() == 1 {
         draw.background().color(bg_color);
     }
+    // soft clear screen
+    draw.rect()
+        .w_h(2000.0, 2000.0)
+        .color(srgba(0.106, 0.106, 0.106, 1.00));
+
     draw.texture(&model.texture);
 
     let midi = freq_to_midi(model.last_frequency);
     let midi_f = freq_to_midi_float(model.last_frequency);
-    let note_index = (midi as i32) - 60;
+    let note_index =
+        (midi as i32) - 60 - get_harmonica_key_semitone_offset(model.settings.key) as i32;
     if let Some(pos) = model.note_positions.get(note_index as usize) {
         if model.is_running {
             if model.current_level > 0.05 {
@@ -280,12 +287,6 @@ fn view(app: &App, model: &Model, frame: Frame) {
             }
         }
     }
-
-    // soft clear screen
-    draw.rect()
-        .w_h(2000.0, 2000.0)
-        .color(srgba(0.106, 0.106, 0.106, 0.15));
-
     let text_pos = Vec2::ZERO;
     if model.is_running {
         draw.text(&model.current_note)
