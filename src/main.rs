@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use nannou::prelude::*;
 use nannou_audio as audio;
 use nannou_audio::Buffer;
@@ -10,10 +8,17 @@ use pitch_detection::detector::PitchDetector;
 use regex::Regex;
 use ringbuf::HeapRb;
 
+const BLOW_Y: f32 = 31.0;
+const DRAW_Y: f32 = -10.0;
+const DRAW_X: f32 = -250.0;
+const HOLE_X_DIST: f32 = 55.0;
+const HOLE_Y_DIST: f32 = 21.0;
+
 struct Model {
     _in_stream: audio::Stream<InputModel>,
     consumer: ringbuf::HeapConsumer<f32>,
-    tuning_notes: Vec<String>,
+    tuning_notes_in_order: Vec<String>,
+    tuning_note_layout: Vec<Vec<String>>,
     current_note: String,
     current_level: f32,
     ui_visible: bool,
@@ -21,32 +26,24 @@ struct Model {
     settings: Settings,
     is_running: bool,
 
-    texture: wgpu::Texture,
     note_positions: Vec<Vec2>,
     last_frequency: f32,
 }
 
 fn calc_note_positions(tuning_notes: &[String]) -> Vec<Vec2> {
     let re = Regex::new(r"(?P<dir>-?)(?P<note>\d{1,2})(?P<rest>.*)").unwrap();
-    let blow_y = 31.0;
-    let draw_y = -10.0;
-    let draw_x = -250.0;
-    let hole_x_dist = 55.0;
-    let hole_y_dist = 21.0;
     let mut res = Vec::new();
-    println!("{:?}", tuning_notes);
 
     for note in tuning_notes.iter() {
         if let Some(caps) = re.captures(note) {
             let direction = &caps["dir"]; // "-" or ""
             let bends_or_ob = &caps["rest"];
-            println!("{}, {}, {}", direction, &caps["note"], bends_or_ob);
 
-            let mut y = if direction == "-" { draw_y } else { blow_y };
+            let mut y = if direction == "-" { DRAW_Y } else { BLOW_Y };
 
             if let Ok(note_n) = &caps["note"].parse::<usize>() {
-                let x = draw_x + (note_n - 1) as f32 * hole_x_dist;
-                let y_offset = bends_or_ob.len() as f32 * hole_y_dist;
+                let x = DRAW_X + (note_n - 1) as f32 * HOLE_X_DIST;
+                let y_offset = bends_or_ob.len() as f32 * HOLE_Y_DIST;
 
                 if direction == "-" {
                     y -= y_offset;
@@ -115,14 +112,14 @@ fn model(app: &App) -> Model {
 
     in_stream.play().unwrap();
 
-    let texture = wgpu::Texture::from_path(app, Path::new("layout.png")).unwrap();
     let tuning_notes = harptabber::tuning_to_notes_in_order("richter").0;
     let note_positions = calc_note_positions(&tuning_notes);
 
     Model {
         _in_stream: in_stream,
         consumer: cons,
-        tuning_notes,
+        tuning_notes_in_order: tuning_notes,
+        tuning_note_layout: harptabber::get_tabkeyboard_layout("richter"),
         current_note: "4".to_owned(),
         current_level: 0.0,
         ui_visible: false,
@@ -134,7 +131,6 @@ fn model(app: &App) -> Model {
             key: "C",
             tuning: "richter",
         },
-        texture,
         note_positions,
         last_frequency: 0.0,
     }
@@ -178,12 +174,8 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 if let Some(_) = model.note_positions.get(note_index as usize) {
                     model.last_frequency = frequency;
                 }
-                model.current_note = midi_to_tab(midi, settings.key, &model.tuning_notes);
+                model.current_note = midi_to_tab(midi, settings.key, &model.tuning_notes_in_order);
             }
-
-            // if model.is_running {
-            //     model.locations.push_overwrite(new_pos);
-            // }
 
             buf.clear();
         }
@@ -248,8 +240,8 @@ fn ui(model: &mut Model, update: Update) {
                         {
                             let tuning_notes = harptabber::tuning_to_notes_in_order(tuning).0;
                             model.note_positions = calc_note_positions(&tuning_notes);
-                            model.tuning_notes = tuning_notes;
-                            // TODO change image
+                            model.tuning_notes_in_order = tuning_notes;
+                            model.tuning_note_layout = harptabber::get_tabkeyboard_layout(tuning);
                         }
                     }
                 });
@@ -278,16 +270,37 @@ fn view(app: &App, model: &Model, frame: Frame) {
             .font_size(32);
     }
 
-    // draw.texture(&model.texture);
-    for &pos in model.note_positions.iter() {
-        draw.rect()
-            .xy(pos)
-            .wh(Vec2::new(50.0, 18.0))
-            .color(DARKGRAY);
+    // for &pos in model.note_positions.iter() {
+    //     draw.rect()
+    //         .xy(pos)
+    //         .wh(Vec2::new(50.0, 18.0))
+    //         .color(DARKGRAY);
+    // }
+
+    for (mut i, row) in model.tuning_note_layout.iter().rev().enumerate() {
+        if i > 3 {
+            i += 1;
+        }
+        for (j, note) in row.iter().enumerate() {
+            if note.is_empty() {
+                continue;
+            }
+            let x = DRAW_X + j as f32 * HOLE_X_DIST;
+            let y = -75.0 + i as f32 * (HOLE_Y_DIST - 0.5);
+            draw.rect()
+                .x(x)
+                .y(y)
+                .wh(Vec2::new(50.0, 18.0))
+                .color(DARKGRAY);
+            // draw.text((s))
+        }
     }
+    draw.polyline()
+        .points(model.note_positions.iter().copied())
+        .color(WHITE);
 
     let midi = freq_to_midi(model.last_frequency);
-    let midi_f = freq_to_midi_float(model.last_frequency);
+    // let midi_f = freq_to_midi_float(model.last_frequency);
     let note_index =
         (midi as i32) - 60 - get_harmonica_key_semitone_offset(model.settings.key) as i32;
     if let Some(pos) = model.note_positions.get(note_index as usize) {
