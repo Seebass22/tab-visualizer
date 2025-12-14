@@ -11,7 +11,7 @@ use ringbuf::HeapRb;
 const BLOW_Y: f32 = 50.0;
 const DRAW_X: f32 = -480.0;
 const HOLE_X_DIST: f32 = 110.0;
-const HOLE_Y_DIST: f32 = 40.0;
+const HOLE_Y_DIST: f32 = 45.0;
 const DRAW_Y: f32 = BLOW_Y - 2.0 * HOLE_Y_DIST;
 
 struct Model {
@@ -282,11 +282,13 @@ fn view(app: &App, model: &Model, frame: Frame) {
             draw.rect()
                 .x(x)
                 .y(y)
-                .wh(Vec2::new(100.0, 30.0))
-                .color(DARKGRAY);
+                .wh(Vec2::new(HOLE_X_DIST - 10.0, HOLE_Y_DIST - 10.0))
+                .color(DARKGRAY)
+                .stroke(BLACK)
+                .stroke_weight(4.0);
             draw.text(note)
                 .x(x - 8.0)
-                .y(y + 2.0)
+                .y(y + 4.0)
                 .color(BLACK)
                 .font_size(22);
         }
