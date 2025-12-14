@@ -262,12 +262,11 @@ fn view(app: &App, model: &Model, frame: Frame) {
         .w_h(2000.0, 2000.0)
         .color(srgba(0.106, 0.106, 0.106, 1.00));
 
-    let text_pos = Vec2::ZERO;
     if model.is_running {
         draw.text(&model.current_note)
-            .x(text_pos.x)
-            .y(-110.0)
-            .font_size(32);
+            .x(0.0)
+            .y(-250.0)
+            .font_size(60);
     }
 
     for (mut i, row) in model.tuning_note_layout.iter().rev().enumerate() {
@@ -292,9 +291,9 @@ fn view(app: &App, model: &Model, frame: Frame) {
                 .font_size(22);
         }
     }
-    draw.polyline()
-        .points(model.note_positions.iter().copied())
-        .color(WHITE);
+    // draw.polyline()
+    //     .points(model.note_positions.iter().copied())
+    //     .color(WHITE);
 
     let midi = freq_to_midi(model.last_frequency);
     // let midi_f = freq_to_midi_float(model.last_frequency);
@@ -307,7 +306,8 @@ fn view(app: &App, model: &Model, frame: Frame) {
                 draw.ellipse()
                     .x(pos.x)
                     .y(pos.y)
-                    .wh(Vec2::new(fac * 10.0, fac * 10.0));
+                    .wh(Vec2::new(fac * 10.0, fac * 10.0))
+                    .color(srgba(1.0, 0.0, 0.0, 0.8));
             }
         }
     }
