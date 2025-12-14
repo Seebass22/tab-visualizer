@@ -285,7 +285,11 @@ fn view(app: &App, model: &Model, frame: Frame) {
                 .y(y)
                 .wh(Vec2::new(100.0, 30.0))
                 .color(DARKGRAY);
-            draw.text(note).x(x - 8.0).y(y).color(BLACK);
+            draw.text(note)
+                .x(x - 8.0)
+                .y(y + 2.0)
+                .color(BLACK)
+                .font_size(22);
         }
     }
     draw.polyline()
