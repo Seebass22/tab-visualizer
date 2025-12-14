@@ -8,11 +8,11 @@ use pitch_detection::detector::PitchDetector;
 use regex::Regex;
 use ringbuf::HeapRb;
 
-const BLOW_Y: f32 = 31.0;
-const DRAW_Y: f32 = -10.0;
-const DRAW_X: f32 = -250.0;
-const HOLE_X_DIST: f32 = 55.0;
-const HOLE_Y_DIST: f32 = 21.0;
+const BLOW_Y: f32 = 50.0;
+const DRAW_X: f32 = -480.0;
+const HOLE_X_DIST: f32 = 110.0;
+const HOLE_Y_DIST: f32 = 38.0;
+const DRAW_Y: f32 = BLOW_Y - 2.0 * HOLE_Y_DIST;
 
 struct Model {
     _in_stream: audio::Stream<InputModel>,
@@ -82,7 +82,7 @@ fn model(app: &App) -> Model {
         .view(view)
         .raw_event(raw_window_event)
         .key_pressed(key_pressed)
-        .size(640, 280)
+        .size(1280, 720)
         .build()
         .unwrap();
 
@@ -270,13 +270,6 @@ fn view(app: &App, model: &Model, frame: Frame) {
             .font_size(32);
     }
 
-    // for &pos in model.note_positions.iter() {
-    //     draw.rect()
-    //         .xy(pos)
-    //         .wh(Vec2::new(50.0, 18.0))
-    //         .color(DARKGRAY);
-    // }
-
     for (mut i, row) in model.tuning_note_layout.iter().rev().enumerate() {
         if i > 3 {
             i += 1;
@@ -286,13 +279,13 @@ fn view(app: &App, model: &Model, frame: Frame) {
                 continue;
             }
             let x = DRAW_X + j as f32 * HOLE_X_DIST;
-            let y = -75.0 + i as f32 * (HOLE_Y_DIST - 0.5);
+            let y = (DRAW_Y - 3.0 * HOLE_Y_DIST) + i as f32 * (HOLE_Y_DIST - 0.5);
             draw.rect()
                 .x(x)
                 .y(y)
-                .wh(Vec2::new(50.0, 18.0))
+                .wh(Vec2::new(100.0, 30.0))
                 .color(DARKGRAY);
-            // draw.text((s))
+            draw.text(note).x(x - 8.0).y(y).color(BLACK);
         }
     }
     draw.polyline()
