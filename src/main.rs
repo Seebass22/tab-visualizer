@@ -11,7 +11,7 @@ use ringbuf::HeapRb;
 const BLOW_Y: f32 = 50.0;
 const DRAW_X: f32 = -480.0;
 const HOLE_X_DIST: f32 = 110.0;
-const HOLE_Y_DIST: f32 = 38.0;
+const HOLE_Y_DIST: f32 = 40.0;
 const DRAW_Y: f32 = BLOW_Y - 2.0 * HOLE_Y_DIST;
 
 struct Model {
