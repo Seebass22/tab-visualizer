@@ -278,7 +278,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
                 continue;
             }
             let x = DRAW_X + j as f32 * HOLE_X_DIST;
-            let y = (DRAW_Y - 3.0 * HOLE_Y_DIST) + i as f32 * (HOLE_Y_DIST - 0.5);
+            let y = (DRAW_Y - 3.0 * HOLE_Y_DIST) + i as f32 * HOLE_Y_DIST;
             draw.rect()
                 .x(x)
                 .y(y)
@@ -295,7 +295,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
     }
     // draw.polyline()
     //     .points(model.note_positions.iter().copied())
-    //     .color(WHITE);
+    //     .color(RED);
 
     let midi = freq_to_midi(model.last_frequency);
     // let midi_f = freq_to_midi_float(model.last_frequency);
