@@ -1,3 +1,4 @@
+use nannou::color::rgb_u32;
 use nannou::prelude::*;
 use nannou_audio as audio;
 use nannou_audio::Buffer;
@@ -253,19 +254,19 @@ fn ui(model: &mut Model, update: Update) {
 
 fn view(app: &App, model: &Model, frame: Frame) {
     let draw = app.draw();
-    let bg_color = srgba(0.106, 0.106, 0.106, 1.0);
+    let bg_color = rgb_u32(0x292831);
+    let note_color = rgb_u32(0xee8695);
     if app.elapsed_frames() == 1 {
         draw.background().color(bg_color);
     }
 
-    draw.rect()
-        .w_h(2000.0, 2000.0)
-        .color(srgba(0.106, 0.106, 0.106, 1.00));
+    draw.rect().w_h(2000.0, 2000.0).color(bg_color);
 
     if model.is_running {
         draw.text(&model.current_note)
             .x(0.0)
             .y(-250.0)
+            .color(note_color)
             .font_size(60);
     }
 
@@ -283,13 +284,13 @@ fn view(app: &App, model: &Model, frame: Frame) {
                 .x(x)
                 .y(y)
                 .wh(Vec2::new(HOLE_X_DIST - 10.0, HOLE_Y_DIST - 10.0))
-                .color(DARKGRAY)
-                .stroke(BLACK)
+                .color(rgb_u32(0x4a7a96))
+                .stroke(rgb_u32(0x333f58))
                 .stroke_weight(4.0);
             draw.text(note)
                 .x(x - 8.0)
                 .y(y + 4.0)
-                .color(BLACK)
+                .color(bg_color)
                 .font_size(22);
         }
     }
@@ -309,7 +310,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
                     .x(pos.x)
                     .y(pos.y)
                     .wh(Vec2::new(fac * 10.0, fac * 10.0))
-                    .color(srgba(1.0, 0.0, 0.0, 0.8));
+                    .color(note_color);
             }
         }
     }
