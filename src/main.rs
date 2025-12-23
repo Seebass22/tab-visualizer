@@ -270,6 +270,16 @@ fn view(app: &App, model: &Model, frame: Frame) {
             .font_size(60);
     }
 
+    draw.text(&format!(
+        "{} {} harmonica",
+        model.settings.key, model.settings.tuning
+    ))
+    .width(1000.0)
+    .x(0.0)
+    .y(200.0)
+    .color(note_color)
+    .font_size(48);
+
     for (mut i, row) in model.tuning_note_layout.iter().rev().enumerate() {
         if i > 3 {
             i += 1;
@@ -299,7 +309,6 @@ fn view(app: &App, model: &Model, frame: Frame) {
     //     .color(RED);
 
     let midi = freq_to_midi(model.last_frequency);
-    // let midi_f = freq_to_midi_float(model.last_frequency);
     let note_index =
         (midi as i32) - 60 - get_harmonica_key_semitone_offset(model.settings.key) as i32;
     if let Some(pos) = model.note_positions.get(note_index as usize) {
