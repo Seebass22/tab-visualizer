@@ -172,7 +172,7 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 let midi = freq_to_midi(frequency);
                 let note_index =
                     (midi as i32) - 60 - get_harmonica_key_semitone_offset(settings.key) as i32;
-                if let Some(_) = model.note_positions.get(note_index as usize) {
+                if model.note_positions.get(note_index as usize).is_some() {
                     model.last_frequency = frequency;
                 }
                 model.current_note = midi_to_tab(midi, settings.key, &model.tuning_notes_in_order);
@@ -303,15 +303,13 @@ fn view(app: &App, model: &Model, frame: Frame) {
     let note_index =
         (midi as i32) - 60 - get_harmonica_key_semitone_offset(model.settings.key) as i32;
     if let Some(pos) = model.note_positions.get(note_index as usize) {
-        if model.is_running {
-            if model.current_level > 0.05 {
-                let fac = (model.current_level * 10.0).min(2.0);
-                draw.ellipse()
-                    .x(pos.x)
-                    .y(pos.y)
-                    .wh(Vec2::new(fac * 10.0, fac * 10.0))
-                    .color(note_color);
-            }
+        if model.is_running && model.current_level > 0.05 {
+            let fac = (model.current_level * 10.0).min(2.0);
+            draw.ellipse()
+                .x(pos.x)
+                .y(pos.y)
+                .wh(Vec2::new(fac * 10.0, fac * 10.0))
+                .color(note_color);
         }
     }
 
@@ -331,10 +329,6 @@ fn pass_in(model: &mut InputModel, buffer: &Buffer) {
 
 fn freq_to_midi(freq: f32) -> u8 {
     (12.0 * (freq / 440.0).log2() + 69.0).round() as u8
-}
-
-fn freq_to_midi_float(freq: f32) -> f32 {
-    12.0 * (freq / 440.0).log2() + 69.0
 }
 
 fn get_harmonica_key_semitone_offset(key: &str) -> i8 {
