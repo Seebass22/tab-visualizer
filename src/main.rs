@@ -254,19 +254,39 @@ fn ui(model: &mut Model, update: Update) {
 
 fn view(app: &App, model: &Model, frame: Frame) {
     let draw = app.draw();
-    let bg_color = rgb_u32(0x292831);
-    let note_color = rgb_u32(0xee8695);
+    let colors = [
+        rgb_u32(0xfbbbad),
+        rgb_u32(0xee8695),
+        rgb_u32(0x4a7a96),
+        rgb_u32(0x333f58),
+        rgb_u32(0x292831),
+    ];
+    let bg_color = colors[4];
+    let tuning_text_color = colors[2];
+    let tab_color = colors[1];
+    let selected_note_color = colors[1];
+    let hole_color = colors[2];
+    let hole_outline_color = colors[3];
+
     if app.elapsed_frames() == 1 {
         draw.background().color(bg_color);
     }
 
     draw.rect().w_h(2000.0, 2000.0).color(bg_color);
+    if app.elapsed_frames() < 100 {
+        draw.text("F1 to toggle settings")
+            .x(-430.0)
+            .y(300.0)
+            .width(1000.0)
+            .color(tab_color)
+            .font_size(32);
+    }
 
     if model.is_running {
         draw.text(&model.current_note)
             .x(0.0)
             .y(-250.0)
-            .color(note_color)
+            .color(tab_color)
             .font_size(60);
     }
 
@@ -276,8 +296,8 @@ fn view(app: &App, model: &Model, frame: Frame) {
     ))
     .width(1000.0)
     .x(0.0)
-    .y(200.0)
-    .color(note_color)
+    .y(250.0)
+    .color(tuning_text_color)
     .font_size(48);
 
     for (mut i, row) in model.tuning_note_layout.iter().rev().enumerate() {
@@ -294,8 +314,8 @@ fn view(app: &App, model: &Model, frame: Frame) {
                 .x(x)
                 .y(y)
                 .wh(Vec2::new(HOLE_X_DIST - 10.0, HOLE_Y_DIST - 10.0))
-                .color(rgb_u32(0x4a7a96))
-                .stroke(rgb_u32(0x333f58))
+                .color(hole_color)
+                .stroke(hole_outline_color)
                 .stroke_weight(4.0);
             draw.text(note)
                 .x(x - 8.0)
@@ -318,7 +338,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
                 .x(pos.x)
                 .y(pos.y)
                 .wh(Vec2::new(fac * 10.0, fac * 10.0))
-                .color(note_color);
+                .color(selected_note_color);
         }
     }
 
