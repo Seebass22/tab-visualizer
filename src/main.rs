@@ -11,6 +11,8 @@ use pitch_detection::detector::PitchDetector;
 use ringbuf::HeapRb;
 use tab_utils::*;
 
+const SAMPLE_RATE: usize = 44100;
+
 struct Model {
     _in_stream: audio::Stream<InputModel>,
     consumer: ringbuf::HeapConsumer<f32>,
@@ -68,6 +70,7 @@ fn model(app: &App) -> Model {
     let in_model = InputModel { producer: prod };
     let in_stream = audio_host
         .new_input_stream(in_model)
+        .sample_rate(SAMPLE_RATE as u32)
         .capture(pass_in)
         .build()
         .unwrap();
@@ -115,7 +118,6 @@ fn update(_app: &App, model: &mut Model, update: Update) {
                 .unwrap()
                 .into();
 
-            const SAMPLE_RATE: usize = 44100;
             const SIZE: usize = 1024;
             const PADDING: usize = SIZE / 2;
 
