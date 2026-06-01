@@ -12,6 +12,8 @@ use ringbuf::HeapRb;
 use tab_utils::*;
 
 const SAMPLE_RATE: usize = 44100;
+const DEFAULT_POWER_THRESHOLD: f32 = 3.0;
+const DEFAULT_CLARITY_THRESHOLD: f32 = 0.7;
 
 struct Model {
     _in_stream: audio::Stream<InputModel>,
@@ -91,8 +93,8 @@ fn model(app: &App) -> Model {
         egui,
         is_running: false,
         settings: Settings {
-            power_threshold: 3.0,
-            clarity_threshold: 0.7,
+            power_threshold: DEFAULT_POWER_THRESHOLD,
+            clarity_threshold: DEFAULT_CLARITY_THRESHOLD,
             key: "C",
             tuning: "richter",
         },
@@ -213,6 +215,10 @@ fn pitch_detection_settings(ui: &mut egui::Ui, settings: &mut Settings) {
             &mut settings.clarity_threshold,
             0.0..=1.0,
         ));
+        if ui.button("reset to defaults").clicked() {
+            settings.clarity_threshold = DEFAULT_CLARITY_THRESHOLD;
+            settings.power_threshold = DEFAULT_POWER_THRESHOLD;
+        }
     });
 }
 
