@@ -144,72 +144,93 @@ fn update(_app: &App, model: &mut Model, update: Update) {
     }
 }
 
-fn ui(model: &mut Model, update: Update) {
-    let egui = &mut model.egui;
-    let settings = &mut model.settings;
+fn harmonica_settings(
+    ui: &mut egui::Ui,
+    settings: &mut Settings,
+    note_positions: &mut Vec<Vec2>,
+    tuning_notes_in_order: &mut Vec<String>,
+    tuning_note_layout: &mut Vec<Vec<String>>,
+) {
+    ui.vertical(|ui| {
+        ui.label(RichText::new("Harmonica settings").font(FontId::proportional(20.0)));
+        let keys = [
+            "C", "G", "D", "A", "E", "B", "F#", "Db", "Ab", "Eb", "Bb", "F", "LF", "LC", "LD", "HG",
+        ];
+        egui::ComboBox::from_label("Key")
+            .selected_text(settings.key)
+            .show_ui(ui, |ui| {
+                for key in keys.iter() {
+                    if ui.selectable_value(&mut settings.key, key, *key).changed() {
+                        // TODO
+                    }
+                }
+            });
 
-    egui.set_elapsed_time(update.since_start);
-    let ctx = egui.begin_frame();
+        let tunings = [
+            "richter",
+            "country",
+            "wilde tuning",
+            "wilde minor tuning",
+            "melody maker",
+            "natural minor",
+            "harmonic minor",
+            "paddy richter",
+            "pentaharp",
+            "powerdraw",
+            "powerbender",
+            "diminished",
+            "easy 3rd",
+        ];
+        egui::ComboBox::from_label("Tuning")
+            .selected_text(settings.tuning)
+            .width(150.0)
+            .show_ui(ui, |ui| {
+                for &tuning in tunings.iter() {
+                    if ui
+                        .selectable_value(&mut settings.tuning, tuning, tuning)
+                        .changed()
+                    {
+                        let tuning_notes = harptabber::tuning_to_notes_in_order(tuning).0;
+                        *note_positions = calc_note_positions(&tuning_notes);
+                        *tuning_notes_in_order = tuning_notes;
+                        *tuning_note_layout = harptabber::get_tabkeyboard_layout(tuning);
+                    }
+                }
+            });
+    });
+}
+
+fn pitch_detection_settings(ui: &mut egui::Ui, settings: &mut Settings) {
+    ui.vertical(|ui| {
+        ui.label(RichText::new("Pitch detection settings").font(FontId::proportional(20.0)));
+        ui.label("Power threshold:");
+        ui.add(egui::Slider::new(&mut settings.power_threshold, 0.0..=5.0));
+
+        ui.label("Clarity threshold:");
+        ui.add(egui::Slider::new(
+            &mut settings.clarity_threshold,
+            0.0..=1.0,
+        ));
+    });
+}
+
+fn ui(model: &mut Model, update: Update) {
+    model.egui.set_elapsed_time(update.since_start);
+    let ctx = model.egui.begin_frame();
 
     if model.ui_visible {
         egui::Window::new("Settings").show(&ctx, |ui| {
-            ui.label(RichText::new("Pitch detection settings").font(FontId::proportional(20.0)));
-            ui.label("Power threshold:");
-            ui.add(egui::Slider::new(&mut settings.power_threshold, 0.0..=5.0));
-
-            ui.label("Clarity threshold:");
-            ui.add(egui::Slider::new(
-                &mut settings.clarity_threshold,
-                0.0..=1.0,
-            ));
-            ui.add_space(10.0);
-
-            ui.label(RichText::new("Harmonica settings").font(FontId::proportional(20.0)));
-            let keys = [
-                "C", "G", "D", "A", "E", "B", "F#", "Db", "Ab", "Eb", "Bb", "F", "LF", "LC", "LD",
-                "HG",
-            ];
-            egui::ComboBox::from_label("Key")
-                .selected_text(settings.key)
-                .show_ui(ui, |ui| {
-                    for key in keys.iter() {
-                        if ui.selectable_value(&mut settings.key, key, *key).changed() {
-                            // TODO
-                        }
-                    }
-                });
-
-            let tunings = [
-                "richter",
-                "country",
-                "wilde tuning",
-                "wilde minor tuning",
-                "melody maker",
-                "natural minor",
-                "harmonic minor",
-                "paddy richter",
-                "pentaharp",
-                "powerdraw",
-                "powerbender",
-                "diminished",
-                "easy 3rd",
-            ];
-            egui::ComboBox::from_label("Tuning")
-                .selected_text(settings.tuning)
-                .width(150.0)
-                .show_ui(ui, |ui| {
-                    for &tuning in tunings.iter() {
-                        if ui
-                            .selectable_value(&mut settings.tuning, tuning, tuning)
-                            .changed()
-                        {
-                            let tuning_notes = harptabber::tuning_to_notes_in_order(tuning).0;
-                            model.note_positions = calc_note_positions(&tuning_notes);
-                            model.tuning_notes_in_order = tuning_notes;
-                            model.tuning_note_layout = harptabber::get_tabkeyboard_layout(tuning);
-                        }
-                    }
-                });
+            ui.horizontal(|ui| {
+                harmonica_settings(
+                    ui,
+                    &mut model.settings,
+                    &mut model.note_positions,
+                    &mut model.tuning_notes_in_order,
+                    &mut model.tuning_note_layout,
+                );
+                ui.add_space(50.0);
+                pitch_detection_settings(ui, &mut model.settings);
+            });
 
             ui.label("F1 to hide");
         });
