@@ -1,4 +1,5 @@
 mod tab_utils;
+use egui::{FontId, RichText};
 use nannou::color::rgb_u32;
 use nannou::prelude::*;
 use nannou_audio as audio;
@@ -152,6 +153,7 @@ fn ui(model: &mut Model, update: Update) {
 
     if model.ui_visible {
         egui::Window::new("Settings").show(&ctx, |ui| {
+            ui.label(RichText::new("Pitch detection settings").font(FontId::proportional(20.0)));
             ui.label("Power threshold:");
             ui.add(egui::Slider::new(&mut settings.power_threshold, 0.0..=5.0));
 
@@ -160,7 +162,9 @@ fn ui(model: &mut Model, update: Update) {
                 &mut settings.clarity_threshold,
                 0.0..=1.0,
             ));
+            ui.add_space(10.0);
 
+            ui.label(RichText::new("Harmonica settings").font(FontId::proportional(20.0)));
             let keys = [
                 "C", "G", "D", "A", "E", "B", "F#", "Db", "Ab", "Eb", "Bb", "F", "LF", "LC", "LD",
                 "HG",
