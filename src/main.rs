@@ -36,6 +36,7 @@ struct Settings {
     clarity_threshold: f32,
     key: &'static str,
     tuning: &'static str,
+    detailed_view: bool,
 }
 
 fn main() {
@@ -97,6 +98,7 @@ fn model(app: &App) -> Model {
             clarity_threshold: DEFAULT_CLARITY_THRESHOLD,
             key: "C",
             tuning: "richter",
+            detailed_view: true,
         },
         note_positions,
         last_frequency: 0.0,
@@ -204,6 +206,10 @@ fn harmonica_settings(
     });
 }
 
+fn display_settings(ui: &mut egui::Ui, settings: &mut Settings) {
+    ui.checkbox(&mut settings.detailed_view, "detailed pitch view");
+}
+
 fn pitch_detection_settings(ui: &mut egui::Ui, settings: &mut Settings) {
     ui.vertical(|ui| {
         ui.label(RichText::new("Pitch detection settings").font(FontId::proportional(20.0)));
@@ -238,6 +244,8 @@ fn ui(model: &mut Model, update: Update) {
                 );
                 ui.add_space(50.0);
                 pitch_detection_settings(ui, &mut model.settings);
+                ui.add_space(50.0);
+                display_settings(ui, &mut model.settings);
             });
 
             ui.label("F1 to hide");
@@ -322,6 +330,13 @@ fn view(app: &App, model: &Model, frame: Frame) {
     //     .color(RED);
 
     let midi = freq_to_midi(model.last_frequency);
+    let midi_f = freq_to_midi_float(model.last_frequency);
+    let note_offset = if model.settings.detailed_view {
+        20.0 * (midi_f - midi as f32)
+    } else {
+        0.0
+    };
+
     let note_index =
         (midi as i32) - 60 - get_harmonica_key_semitone_offset(model.settings.key) as i32;
     if let Some(pos) = model.note_positions.get(note_index as usize) {
@@ -329,7 +344,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
             let fac = (model.current_level * 10.0).min(2.0);
             draw.ellipse()
                 .x(pos.x)
-                .y(pos.y)
+                .y(pos.y + note_offset)
                 .wh(Vec2::new(fac * 10.0, fac * 10.0))
                 .color(selected_note_color);
         }

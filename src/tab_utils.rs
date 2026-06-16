@@ -46,6 +46,10 @@ pub fn freq_to_midi(freq: f32) -> u8 {
     (12.0 * (freq / 440.0).log2() + 69.0).round() as u8
 }
 
+pub fn freq_to_midi_float(freq: f32) -> f32 {
+    12.0 * (freq / 440.0).log2() + 69.0
+}
+
 pub fn get_harmonica_key_semitone_offset(key: &str) -> i8 {
     match key {
         "C" => 0,
